@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 studio.py - Agent Video Studio Control Center
-A minimalist, high-end, Awwwards-inspired control panel with live visual caption & theme simulator.
+A minimalist, high-end, Awwwards-inspired control panel with live visual preview & 1-click video rendering.
 Runs locally at http://localhost:5500
 """
 
@@ -11,11 +11,24 @@ import os
 import socketserver
 import urllib.parse
 import glob
+import threading
+import sys
+import time
 
 PORT = 5500
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECTS_DIR = os.path.join(REPO_ROOT, "projects")
 RENDERS_DIR = os.path.join(REPO_ROOT, "renders")
+
+# In-memory job state
+JOB_STATE = {
+    "status": "idle",
+    "percent": 0,
+    "message": "Ready to produce",
+    "video_name": None,
+    "video_url": None,
+    "error": None
+}
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -57,7 +70,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding: 40px 20px 80px;
     }
 
-    /* Ambient lighting */
     body::before {
       content: "";
       position: fixed;
@@ -78,7 +90,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       z-index: 1;
     }
 
-    /* Header */
     header {
       display: flex;
       flex-direction: column;
@@ -142,9 +153,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       line-height: 1.6;
     }
 
-    /* ==========================================================================
-       LIVE VISUAL CANVAS SIMULATOR (Real-Time WYSIWYG)
-       ========================================================================== */
+    /* Live Simulator */
     .simulator-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -152,8 +161,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding: 24px;
       margin-bottom: 28px;
       box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      position: relative;
-      overflow: hidden;
     }
 
     .simulator-header {
@@ -189,7 +196,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
     }
 
-    /* Ambient animated video placeholder in the simulator */
     .sim-screen::before {
       content: "";
       position: absolute;
@@ -239,7 +245,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 1.05rem;
       font-weight: 700;
       font-family: 'Space Grotesk', sans-serif;
-      letter-spacing: -0.01em;
     }
 
     .sim-word {
@@ -249,7 +254,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transition: all 0.3s ease;
     }
 
-    /* Caption Style Variations on Live Simulator */
     .sim-caption-bar.style-kinetic-gold .active-word {
       background: #fbbf24;
       color: #0b0f19;
@@ -271,9 +275,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
     }
 
-    /* ==========================================================================
-       MAIN FORM & INTERACTIVE VISUAL CARDS
-       ========================================================================== */
+    /* Main form card */
     .glass-card {
       background: var(--card-bg);
       backdrop-filter: blur(20px);
@@ -287,10 +289,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     .field-group {
       margin-bottom: 28px;
-    }
-
-    .field-group:last-child {
-      margin-bottom: 0;
     }
 
     .label-row {
@@ -313,8 +311,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--text-dim);
     }
 
-    /* Clean Input */
-    input[type="text"], textarea {
+    input[type="text"] {
       width: 100%;
       padding: 16px 18px;
       background: var(--surface-inner);
@@ -325,10 +322,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 1.05rem;
       font-weight: 500;
       outline: none;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.25s;
     }
 
-    input[type="text"]:focus, textarea:focus {
+    input[type="text"]:focus {
       border-color: rgba(245, 158, 11, 0.6);
       box-shadow: 0 0 0 4px var(--accent-glow);
     }
@@ -359,7 +356,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transform: translateY(-1px);
     }
 
-    /* Aspect Grid */
     .aspect-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -402,9 +398,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--accent-light);
     }
 
-    /* ==========================================================================
-       VISUAL CAPTION STYLE PREVIEW CARDS
-       ========================================================================== */
     .caption-style-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -418,13 +411,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding: 16px;
       cursor: pointer;
       transition: all 0.25s;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .style-card:hover {
-      border-color: var(--card-hover);
     }
 
     .style-card.active {
@@ -447,22 +433,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       gap: 4px;
     }
 
-    .style-card-title {
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: var(--text);
-      margin-bottom: 2px;
-    }
-
-    .style-card-desc {
-      font-size: 0.74rem;
-      color: var(--text-dim);
-      line-height: 1.4;
-    }
-
-    /* ==========================================================================
-       VISUAL COLOR THEME PREVIEW CARDS
-       ========================================================================== */
     .theme-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -478,10 +448,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transition: all 0.25s;
     }
 
-    .theme-card:hover {
-      border-color: var(--card-hover);
-    }
-
     .theme-card.active {
       border-color: var(--accent);
       background: rgba(245, 158, 11, 0.05);
@@ -493,12 +459,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
-    }
-
-    .theme-name {
-      font-size: 0.92rem;
-      font-weight: 700;
-      color: #ffffff;
     }
 
     .swatches {
@@ -529,12 +489,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       flex: 1;
     }
 
-    .theme-desc {
-      font-size: 0.76rem;
-      color: var(--text-dim);
-    }
-
-    /* Duration segmented */
     .segmented-control {
       display: flex;
       padding: 4px;
@@ -563,7 +517,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    /* Dropdown wrapper */
     .custom-select-wrapper {
       position: relative;
     }
@@ -599,7 +552,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       gap: 16px;
     }
 
-    /* Button */
+    /* Primary Action Button */
     .submit-btn {
       width: 100%;
       padding: 18px 32px;
@@ -608,13 +561,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border-radius: 14px;
       color: #050811;
       font-family: inherit;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       font-weight: 800;
-      letter-spacing: -0.01em;
       cursor: pointer;
       box-shadow: 0 10px 30px -5px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
       transition: all 0.25s;
       margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
     }
 
     .submit-btn:hover {
@@ -623,11 +579,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
     }
 
-    /* Prompt output */
-    .prompt-card {
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Live Progress Stepper Overlay */
+    .progress-box {
       display: none;
       margin-top: 24px;
-      background: rgba(10, 14, 23, 0.95);
+      background: rgba(10, 14, 23, 0.98);
       border: 1px solid rgba(245, 158, 11, 0.4);
       border-radius: 16px;
       padding: 24px;
@@ -640,49 +602,44 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .terminal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 14px 0 16px;
     }
 
-    .terminal-title {
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #f59e0b, #38bdf8);
+      border-radius: 999px;
+      transition: width 0.4s ease;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+    }
+
+    .log-line {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--accent-light);
+      font-size: 0.85rem;
+      color: #38bdf8;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .copy-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
-      color: #ffffff;
-      padding: 6px 14px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(56, 189, 248, 0.3);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
 
-    .copy-btn:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    .terminal-code {
-      background: #030407;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
-      padding: 16px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      color: #38bdf8;
-      white-space: pre-wrap;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     /* Gallery */
@@ -715,26 +672,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       aspect-ratio: 16 / 9;
     }
 
-    #toast {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #10b981;
-      color: #041f14;
-      padding: 10px 22px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 1000;
-    }
-
-    #toast.show {
-      transform: translateX(-50%) translateY(0);
-    }
-
     @media (max-width: 640px) {
       .grid-2, .aspect-grid, .caption-style-grid, .theme-grid { grid-template-columns: 1fr; }
       h1 { font-size: 2.1rem; }
@@ -748,15 +685,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <header>
       <div class="top-badge">
         <span class="status-pulse"></span>
-        <span>STUDIO ENGINE READY • LOCAL HOST 5500</span>
+        <span>STUDIO ENGINE READY • AUTONOMOUS PIPELINE</span>
       </div>
-      <h1>Direct Videos with <span class="gradient">Your Coding Agent</span></h1>
-      <p class="subtitle">Visually preview caption kinetic motion and color palettes in real-time below. Copy the generated spec to your agent to render.</p>
+      <h1>Direct & Render Videos with <span class="gradient">One Click</span></h1>
+      <p class="subtitle">Visually preview styles in real-time. Click Render to run the full neural audio, Whisper, and Remotion video generation pipeline.</p>
     </header>
 
-    <!-- =====================================================================
-         LIVE VISUAL SIMULATOR (WYSIWYG)
-         ===================================================================== -->
+    <!-- LIVE VISUAL SIMULATOR -->
     <div class="simulator-card">
       <div class="simulator-header">
         <div class="sim-tag">
@@ -785,7 +720,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- MAIN CONTROL PANEL -->
+    <!-- MAIN FORM -->
     <div class="glass-card">
       <form id="studio-form">
         <!-- 1. Topic -->
@@ -806,9 +741,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         <!-- 2. Aspect Ratio -->
         <div class="field-group">
-          <div class="label-row">
-            <label>2. Format & Canvas Aspect Ratio</label>
-          </div>
+          <div class="label-row"><label>2. Format & Canvas Aspect Ratio</label></div>
           <div class="aspect-grid">
             <div class="aspect-card active" id="card-16-9" onclick="setAspect('16:9')">
               <div class="aspect-icon-box">
@@ -832,60 +765,52 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           <input type="hidden" id="format" value="16:9" />
         </div>
 
-        <!-- 3. VISUAL CAPTION STYLES (SEE HOW IT LOOKS) -->
+        <!-- 3. Caption Styles -->
         <div class="field-group">
           <div class="label-row">
             <label>3. Kinetic Caption Style (Visual Preview)</label>
-            <span class="label-hint">Click to see live animation in simulator above</span>
           </div>
           <div class="caption-style-grid">
-            <!-- Style 1 -->
             <div class="style-card active" id="style-gold" onclick="setCaptionStyle('kinetic-gold')">
               <div class="style-preview-box">
                 <span style="color:#94a3b8;">WHY</span>
                 <span style="background:#fbbf24; color:#0b0f19; padding:2px 6px; border-radius:4px; box-shadow:0 0 8px rgba(251,191,36,0.5);">GARDEN</span>
                 <span style="color:#94a3b8;">CAN'T</span>
               </div>
-              <div class="style-card-title">✨ TikTok Active Gold</div>
-              <div class="style-card-desc">High-energy viral TikTok/Reels font with spring bounce box.</div>
+              <div style="font-weight:700; font-size:0.9rem; margin-bottom:2px;">✨ TikTok Active Gold</div>
+              <div style="font-size:0.74rem; color:var(--text-dim);">High-energy viral TikTok/Reels font with spring bounce box.</div>
             </div>
 
-            <!-- Style 2 -->
             <div class="style-card" id="style-cyan" onclick="setCaptionStyle('cyber-cyan')">
               <div class="style-preview-box">
                 <span style="color:#94a3b8;">WHY</span>
                 <span style="background:#22d3ee; color:#041824; padding:2px 6px; border-radius:4px; box-shadow:0 0 10px rgba(34,211,238,0.8);">GARDEN</span>
                 <span style="color:#94a3b8;">CAN'T</span>
               </div>
-              <div class="style-card-title">💎 Cyber Neon Cyan</div>
-              <div class="style-card-desc">Luminous sci-fi neon glow for engineering, physics & tech.</div>
+              <div style="font-weight:700; font-size:0.9rem; margin-bottom:2px;">💎 Cyber Neon Cyan</div>
+              <div style="font-size:0.74rem; color:var(--text-dim);">Luminous sci-fi neon glow for engineering, physics & tech.</div>
             </div>
 
-            <!-- Style 3 -->
             <div class="style-card" id="style-white" onclick="setCaptionStyle('clean-white')">
               <div class="style-preview-box">
                 <span style="color:#94a3b8;">WHY</span>
                 <span style="background:#ffffff; color:#0b0f19; padding:2px 6px; border-radius:4px;">GARDEN</span>
                 <span style="color:#94a3b8;">CAN'T</span>
               </div>
-              <div class="style-card-title">⚪ Minimalist Clean</div>
-              <div class="style-card-desc">Crisp monochrome contrast for classic documentaries.</div>
+              <div style="font-weight:700; font-size:0.9rem; margin-bottom:2px;">⚪ Minimalist Clean</div>
+              <div style="font-size:0.74rem; color:var(--text-dim);">Crisp monochrome contrast for classic documentaries.</div>
             </div>
           </div>
           <input type="hidden" id="captionStyle" value="kinetic-gold" />
         </div>
 
-        <!-- 4. VISUAL MOTION & COLOR PALETTES (SEE HOW IT LOOKS) -->
+        <!-- 4. Theme Palettes -->
         <div class="field-group">
-          <div class="label-row">
-            <label>4. Color & Motion Palette (Visual Preview)</label>
-            <span class="label-hint">Click to see canvas colors shift in real time</span>
-          </div>
+          <div class="label-row"><label>4. Color & Motion Palette (Visual Preview)</label></div>
           <div class="theme-grid">
-            <!-- Theme 1 -->
             <div class="theme-card active" id="theme-coffee" onclick="setTheme('flat-motion-graphics')">
               <div class="theme-card-top">
-                <span class="theme-name">☕ Coffee Warm Roast</span>
+                <span style="font-size:0.92rem; font-weight:700;">☕ Coffee Warm Roast</span>
                 <div class="swatches">
                   <span class="swatch" style="background:#f59e0b;"></span>
                   <span class="swatch" style="background:#d97706;"></span>
@@ -898,13 +823,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="theme-bar" style="background:#34d399; height:65%;"></div>
                 <div class="theme-bar" style="background:#f87171; height:100%;"></div>
               </div>
-              <div class="theme-desc">Amber gold accents, dark roast background & vivid temperature bars.</div>
+              <div style="font-size:0.76rem; color:var(--text-dim);">Amber gold accents, dark roast background & temperature limits.</div>
             </div>
 
-            <!-- Theme 2 -->
             <div class="theme-card" id="theme-fintech" onclick="setTheme('clean-professional')">
               <div class="theme-card-top">
-                <span class="theme-name">🌐 Modern Tech & SaaS</span>
+                <span style="font-size:0.92rem; font-weight:700;">🌐 Modern Tech & SaaS</span>
                 <div class="swatches">
                   <span class="swatch" style="background:#2563eb;"></span>
                   <span class="swatch" style="background:#38bdf8;"></span>
@@ -917,13 +841,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="theme-bar" style="background:#38bdf8; height:80%;"></div>
                 <div class="theme-bar" style="background:#10b981; height:60%;"></div>
               </div>
-              <div class="theme-desc">Electric blue, sky cyan & clean high-trust corporate metrics.</div>
+              <div style="font-size:0.76rem; color:var(--text-dim);">Electric blue, sky cyan & clean high-trust corporate metrics.</div>
             </div>
 
-            <!-- Theme 3 -->
             <div class="theme-card" id="theme-blueprint" onclick="setTheme('minimalist-diagram')">
               <div class="theme-card-top">
-                <span class="theme-name">📐 Technical Blueprint</span>
+                <span style="font-size:0.92rem; font-weight:700;">📐 Technical Blueprint</span>
                 <div class="swatches">
                   <span class="swatch" style="background:#e94560;"></span>
                   <span class="swatch" style="background:#0f3460;"></span>
@@ -936,13 +859,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="theme-bar" style="background:#0f3460; height:40%;"></div>
                 <div class="theme-bar" style="background:#9ca3af; height:90%;"></div>
               </div>
-              <div class="theme-desc">Deep space navy with high-contrast scientific coral accents.</div>
+              <div style="font-size:0.76rem; color:var(--text-dim);">Deep space navy with high-contrast scientific coral accents.</div>
             </div>
 
-            <!-- Theme 4 -->
             <div class="theme-card" id="theme-nature" onclick="setTheme('anime-ghibli')">
               <div class="theme-card-top">
-                <span class="theme-name">🍃 Nature & Biology</span>
+                <span style="font-size:0.92rem; font-weight:700;">🍃 Nature & Biology</span>
                 <div class="swatches">
                   <span class="swatch" style="background:#2d5016;"></span>
                   <span class="swatch" style="background:#ffb347;"></span>
@@ -955,7 +877,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="theme-bar" style="background:#2d5016; height:85%;"></div>
                 <div class="theme-bar" style="background:#a8e6cf; height:65%;"></div>
               </div>
-              <div class="theme-desc">Forest greens, sunburst gold & organic natural science palettes.</div>
+              <div style="font-size:0.76rem; color:var(--text-dim);">Forest greens, sunburst gold & organic natural science palettes.</div>
             </div>
           </div>
           <input type="hidden" id="theme" value="flat-motion-graphics" />
@@ -990,52 +912,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
 
         <!-- Action Button -->
-        <button type="submit" class="submit-btn">
-          <span>🚀 Save Spec & Prepare Production</span>
+        <button type="submit" id="btn-submit" class="submit-btn">
+          <span>🚀 Generate & Render Full HD Video Now</span>
         </button>
       </form>
 
-      <!-- Terminal Output Prompt -->
-      <div id="prompt-card" class="prompt-card">
-        <div class="terminal-header">
-          <div class="terminal-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-            <span>TASK PREPARED IN projects/current_task.json</span>
+      <!-- LIVE PROGRESS OVERLAY -->
+      <div id="progress-box" class="progress-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="log-line">
+            <div class="spinner" id="progress-spinner"></div>
+            <span id="progress-msg" style="font-weight:600;">Initializing video production pipeline...</span>
           </div>
-          <button type="button" class="copy-btn" onclick="copyPrompt()">
-            <span id="copy-btn-text">Copy Prompt</span>
-          </button>
+          <span id="progress-pct" style="font-family:'JetBrains Mono',monospace; font-weight:700; color:#f59e0b;">0%</span>
         </div>
-        <div class="terminal-code" id="prompt-code">Please produce the explainer video according to projects/current_task.json. Follow all guidelines in AGENTS.md.</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-dim); font-family:'JetBrains Mono',monospace;" id="progress-sub">
+          Running: Neural Voice Synthesis → Whisper Alignment → B-Roll → Remotion 1080p
+        </div>
       </div>
     </div>
 
     <!-- Gallery -->
-    <div class="gallery-section">
+    <div class="gallery-section" id="gallery-section">
       <div class="gallery-title">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
         <span>Production Vault & Renders</span>
       </div>
-      <div class="gallery-grid" id="gallery-container">
-        <!-- Rendered videos dynamically injected here -->
-      </div>
+      <div class="gallery-grid" id="gallery-container"></div>
     </div>
   </div>
 
-  <div id="toast">Copied prompt to clipboard!</div>
-
   <script>
-    function setTopic(text) {
-      document.getElementById('topic').value = text;
-    }
+    function setTopic(text) { document.getElementById('topic').value = text; }
 
     function setAspect(ratio) {
       document.getElementById('format').value = ratio;
       document.getElementById('card-16-9').classList.toggle('active', ratio === '16:9');
       document.getElementById('card-9-16').classList.toggle('active', ratio === '9:16');
-      
-      const badge = document.getElementById('sim-aspect-badge');
-      badge.innerText = ratio === '16:9' ? '16:9 • 1080P Widescreen' : '9:16 • 1080P Vertical Reel';
+      document.getElementById('sim-aspect-badge').innerText = ratio === '16:9' ? '16:9 • 1080P Widescreen' : '9:16 • 1080P Vertical Reel';
     }
 
     function setDuration(dur) {
@@ -1044,47 +961,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('dur-30').classList.toggle('active', dur === 30);
     }
 
-    // Interactive Caption Style Switcher
     function setCaptionStyle(style) {
       document.getElementById('captionStyle').value = style;
       document.getElementById('style-gold').classList.toggle('active', style === 'kinetic-gold');
       document.getElementById('style-cyan').classList.toggle('active', style === 'cyber-cyan');
       document.getElementById('style-white').classList.toggle('active', style === 'clean-white');
-
-      const simBar = document.getElementById('sim-caption-bar');
-      simBar.className = 'sim-caption-bar style-' + style;
+      document.getElementById('sim-caption-bar').className = 'sim-caption-bar style-' + style;
     }
 
-    // Interactive Theme Switcher
     const THEME_DATA = {
-      'flat-motion-graphics': {
-        name: '☕ Coffee Warm Roast',
-        bg: '#120e0b',
-        metricColor: '#f59e0b',
-        val: '0°C / 32°F',
-        sub: 'Biological Kryptonite: Frost kills coffee trees in hours'
-      },
-      'clean-professional': {
-        name: '🌐 Modern Tech & SaaS',
-        bg: '#0a101f',
-        metricColor: '#38bdf8',
-        val: '$4.2B ARR',
-        sub: 'Zero friction cloud distribution at scale'
-      },
-      'minimalist-diagram': {
-        name: '📐 Technical Blueprint',
-        bg: '#0c0f1a',
-        metricColor: '#e94560',
-        val: '2.4 × 10⁸ ops/s',
-        sub: 'Quantum coherence limit observed in nanoseconds'
-      },
-      'anime-ghibli': {
-        name: '🍃 Nature & Biology',
-        bg: '#08140c',
-        metricColor: '#ffb347',
-        val: '1,800 Meters',
-        sub: 'Highland mountain mist concentrates dense sugars'
-      }
+      'flat-motion-graphics': { name: '☕ Coffee Warm Roast', bg: '#120e0b', metricColor: '#f59e0b', val: '0°C / 32°F', sub: 'Biological Kryptonite: Frost kills coffee trees in hours' },
+      'clean-professional': { name: '🌐 Modern Tech & SaaS', bg: '#0a101f', metricColor: '#38bdf8', val: '$4.2B ARR', sub: 'Zero friction cloud distribution at scale' },
+      'minimalist-diagram': { name: '📐 Technical Blueprint', bg: '#0c0f1a', metricColor: '#e94560', val: '2.4 × 10⁸ ops/s', sub: 'Quantum coherence limit observed in nanoseconds' },
+      'anime-ghibli': { name: '🍃 Nature & Biology', bg: '#08140c', metricColor: '#ffb347', val: '1,800 Meters', sub: 'Highland mountain mist concentrates dense sugars' }
     };
 
     function setTheme(theme) {
@@ -1102,8 +991,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('sim-metric-sub').innerText = t.sub;
     }
 
+    // Submit -> Triggers REAL Production Pipeline
     document.getElementById('studio-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳ Production Pipeline Running...</span>';
+
+      const progressBox = document.getElementById('progress-box');
+      progressBox.style.display = 'block';
+      progressBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
       const spec = {
         topic: document.getElementById('topic').value,
         format: document.getElementById('format').value,
@@ -1111,39 +1009,49 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         voice: document.getElementById('voice').value,
         captionStyle: document.getElementById('captionStyle').value,
         theme: document.getElementById('theme').value,
-        updatedAt: new Date().toISOString()
+        createdAt: new Date().toISOString()
       };
 
-      const res = await fetch('/api/save-task', {
+      const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(spec)
       });
 
-      if (res.ok) {
-        document.getElementById('prompt-card').style.display = 'block';
-        document.getElementById('prompt-code').innerText = 
-          `Please read AGENTS.md and produce the explainer video configured in projects/current_task.json:\n` +
-          `• Topic: "${spec.topic}"\n` +
-          `• Format: ${spec.format} | Duration: ${spec.duration}s\n` +
-          `• Voice: ${spec.voice} | Style: ${spec.captionStyle}\n\n` +
-          `Execute tools/voice.py, tools/captions.py, tools/broll.py and tools/render.py.`;
-        
-        document.getElementById('prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      // Poll progress every 1s
+      pollProgress();
     });
 
-    function copyPrompt() {
-      const text = document.getElementById('prompt-code').innerText;
-      navigator.clipboard.writeText(text);
-      
-      const toast = document.getElementById('toast');
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2500);
+    let pollInterval = null;
+    function pollProgress() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        const res = await fetch('/api/job-status');
+        if (!res.ok) return;
+        const job = await res.json();
 
-      const btnText = document.getElementById('copy-btn-text');
-      btnText.innerText = "Copied!";
-      setTimeout(() => btnText.innerText = "Copy Prompt", 2000);
+        document.getElementById('progress-fill').style.width = job.percent + '%';
+        document.getElementById('progress-pct').innerText = job.percent + '%';
+        document.getElementById('progress-msg').innerText = job.message;
+
+        if (job.status === 'completed' || job.percent >= 100) {
+          clearInterval(pollInterval);
+          document.getElementById('progress-spinner').style.display = 'none';
+          document.getElementById('progress-msg').innerText = '✨ Production Complete! Video rendered.';
+          document.getElementById('btn-submit').disabled = false;
+          document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+
+          loadGallery();
+          setTimeout(() => {
+            document.getElementById('gallery-section').scrollIntoView({ behavior: 'smooth' });
+          }, 800);
+        } else if (job.status === 'error') {
+          clearInterval(pollInterval);
+          document.getElementById('progress-spinner').style.display = 'none';
+          document.getElementById('progress-msg').innerText = '❌ Error: ' + job.error;
+          document.getElementById('btn-submit').disabled = false;
+        }
+      }, 1000);
     }
 
     async function loadGallery() {
@@ -1161,7 +1069,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
               <span style="font-weight:700; color:#ffffff;">${v.name}</span>
               <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; padding:4px 10px; border-radius:999px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.2); color:#38bdf8;">1080P FULL HD • 30 FPS</span>
             </div>
-            <video controls src="${v.url}"></video>
+            <video controls autoplay muted src="${v.url}"></video>
             <div style="display:flex; justify-content:flex-end; margin-top:14px;">
               <a href="${v.url}" download style="color:#fbbf24; text-decoration:none; font-size:0.85rem; font-weight:700;">⬇️ Download Master MP4</a>
             </div>
@@ -1176,6 +1084,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
+def worker_generate(spec):
+    global JOB_STATE
+    JOB_STATE["status"] = "running"
+    JOB_STATE["percent"] = 5
+    JOB_STATE["message"] = "Initializing automated video pipeline..."
+    JOB_STATE["error"] = None
+
+    try:
+        from tools import pipeline
+
+        def status_cb(pct, msg):
+            JOB_STATE["percent"] = pct
+            JOB_STATE["message"] = msg
+
+        out_mp4 = pipeline.run_pipeline(spec, status_callback=status_cb)
+        JOB_STATE["status"] = "completed"
+        JOB_STATE["percent"] = 100
+        JOB_STATE["message"] = "Production complete! Video ready."
+        JOB_STATE["video_name"] = os.path.basename(out_mp4)
+        JOB_STATE["video_url"] = f"/files/renders/{os.path.basename(out_mp4)}"
+    except Exception as e:
+        print(f"[Worker] Pipeline error: {e}", file=sys.stderr)
+        JOB_STATE["status"] = "error"
+        JOB_STATE["error"] = str(e)
+        JOB_STATE["message"] = f"Error: {e}"
+
 class StudioHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -1184,6 +1118,13 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(HTML_TEMPLATE.encode("utf-8"))
+            return
+
+        if parsed.path == "/api/job-status":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(JOB_STATE).encode("utf-8"))
             return
 
         if parsed.path == "/api/renders":
@@ -1218,21 +1159,25 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
-        if self.path == "/api/save-task":
+        if self.path == "/api/generate":
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length).decode("utf-8")
-            data = json.loads(body)
+            spec = json.loads(body)
             
             os.makedirs(PROJECTS_DIR, exist_ok=True)
             task_path = os.path.join(PROJECTS_DIR, "current_task.json")
             with open(task_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-                
-            print(f"[Studio] New task saved: {task_path}")
+                json.dump(spec, f, indent=2)
+
+            # Start worker thread
+            t = threading.Thread(target=worker_generate, args=(spec,))
+            t.daemon = True
+            t.start()
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "ok", "task_path": task_path}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "started", "task_path": task_path}).encode("utf-8"))
             return
 
         self.send_response(404)

@@ -27,10 +27,16 @@ def generate_voice(script_path: str, output_path: str, voice: str = DEFAULT_VOIC
     # Resolve shortcut voice names
     resolved_voice = POPULAR_VOICES.get(voice.lower(), voice)
     
+    # Find best python interpreter (prefer venv if available)
+    py_exec = sys.executable
+    venv_py = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "OpenMontage", ".venv", "bin", "python3")
+    if os.path.exists(venv_py):
+        py_exec = venv_py
+
     cmd = [
-        sys.executable, "-m", "edge_tts",
+        py_exec, "-m", "edge_tts",
         "--voice", resolved_voice,
-        "--rate", rate,
+        f"--rate={rate}",
         "-f", script_path,
         "--write-media", output_path
     ]
