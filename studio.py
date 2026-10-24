@@ -1187,6 +1187,17 @@ def run_server():
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     os.makedirs(RENDERS_DIR, exist_ok=True)
     
+    # Auto-open browser by default
+    if "--no-open" not in sys.argv:
+        def open_browser():
+            import webbrowser
+            time.sleep(0.8)
+            try:
+                webbrowser.open(f"http://localhost:{PORT}")
+            except Exception:
+                pass
+        threading.Thread(target=open_browser, daemon=True).start()
+
     socketserver.TCPServer.allow_reuse_address = True
     server_address = ("", PORT)
     with socketserver.TCPServer(server_address, StudioHandler) as httpd:

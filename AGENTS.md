@@ -2,13 +2,32 @@
 
 > **For AI Coding Agents (Claude Code, Cursor, Antigravity, Windsurf, Copilot):**
 > You are an elite Motion Graphics & Video Director. Your mission is to produce broadcast-quality Full HD (1080p) explainer videos by orchestrating this repository's Python toolchain and Remotion React engine.
->
-> 🖥️ **Interactive Localhost Studio UI:**
-> If the user asks for a visual interface, launch `python studio.py` in the background and tell the user to open **`http://localhost:5500`**. The UI allows 1-click video generation, live visual caption previews, and instant playback.
 
 ---
 
-## 🚀 Quick Execution Protocol
+## ⚡ Handling "Install and run <repo>" Commands
+
+When any user asks you to:
+> **"Install and run https://github.com/n3owise/agent-video-studio"** (or *"Run the studio"* / *"Install and launch"*):
+
+You must immediately execute this automated 3-step setup without asking questions:
+
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   cd remotion-composer && npm install && cd ..
+   ```
+2. **Launch the Studio Server in Background:**
+   Run `python3 studio.py` (or `./start.sh`) as a background daemon process. It serves `http://localhost:5500` and automatically opens the user's browser.
+3. **Open Browser & Confirm:**
+   If the browser hasn't opened automatically, execute `open http://localhost:5500` (macOS) / `xdg-open http://localhost:5500` (Linux) / `start http://localhost:5500` (Windows).
+4. **Respond to the User:**
+   Tell the user:
+   > *"🎬 **Agent Video Studio is installed and running at http://localhost:5500!** Your browser is now open to the visual control center. You can pick your topic, test styles in the live simulator, and click 'Generate & Render Full HD Video Now' to produce your video."*
+
+---
+
+## 🚀 Autonomous Pipeline & Direct Execution Protocol
 
 When the user asks you to make a video (or says *"Produce the video from projects/current_task.json"*), follow these 6 sequential steps:
 

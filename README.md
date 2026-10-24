@@ -35,9 +35,27 @@ Instead of paying \$50–\$200/month for ElevenLabs, stock footage subscriptions
 
 ---
 
-## 🚀 Quick Start in 2 Minutes
+## ⚡ 1-Prompt Launch for Any AI Coding Agent
 
-### 1. Clone & Install Dependencies
+If you are using **Cursor, Claude Code, Antigravity, or Windsurf**, simply paste this into your agent:
+
+```text
+Install and run https://github.com/n3owise/agent-video-studio
+```
+
+*Your AI agent will automatically install all dependencies, start the studio server in the background, and open your browser to `http://localhost:5500` ready to produce videos!*
+
+---
+
+## 🚀 Manual Quick Start (or 1-Click Script)
+
+### Option A: 1-Click Launch Script
+```bash
+./start.sh
+```
+*(Automatically checks packages, launches the server, and opens your browser to `http://localhost:5500`)*
+
+### Option B: Step-by-Step
 ```bash
 git clone https://github.com/n3owise/agent-video-studio.git
 cd agent-video-studio
@@ -47,14 +65,10 @@ pip install -r requirements.txt
 
 # Install Remotion motion graphics engine
 cd remotion-composer && npm install && cd ..
-```
 
-### 2. Launch the Localhost Studio UI (Recommended)
-Launch the interactive web control center:
-```bash
-python studio.py
+# Launch the visual studio (auto-opens http://localhost:5500)
+python3 studio.py
 ```
-Open **`http://localhost:5500`** in your browser!
 
 <p align="center">
   <img src="examples/studio_ui.png" alt="Agent Video Studio Localhost UI" width="760" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);" />
