@@ -20,8 +20,10 @@ REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECTS_DIR = os.path.join(REPO_ROOT, "projects")
 RENDERS_DIR = os.path.join(REPO_ROOT, "renders")
 
-# In-memory job state
+# In-memory job state & synchronization lock
+JOB_LOCK = threading.Lock()
 JOB_STATE = {
+    "job_id": None,
     "status": "idle",
     "percent": 0,
     "message": "Ready to produce",
@@ -918,7 +920,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </form>
 
       <!-- LIVE PROGRESS OVERLAY -->
-      <div id="progress-box" class="progress-box">
+      <div id="progress-box" class="progress-box" style="display:none;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div class="log-line">
             <div class="spinner" id="progress-spinner"></div>
@@ -931,6 +933,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
         <div style="font-size:0.75rem; color:var(--text-dim); font-family:'JetBrains Mono',monospace;" id="progress-sub">
           Running: Neural Voice Synthesis → Whisper Alignment → B-Roll → Remotion 1080p
+        </div>
+
+        <!-- INLINE MASTER VIDEO RESULT (Appears when 100% complete) -->
+        <div id="inline-video-card" style="display:none; margin-top:20px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981;"></span>
+              <span style="font-weight:700; color:#ffffff; font-size:0.95rem;" id="inline-video-title">Master Video Ready</span>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; padding:4px 10px; border-radius:999px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#34d399; font-weight:700;">1080P FULL HD • 30 FPS MASTER</span>
+          </div>
+          <video id="inline-video-player" controls autoplay playsinline style="width:100%; border-radius:12px; background:#000; aspect-ratio:16/9; box-shadow: 0 12px 30px rgba(0,0,0,0.7); margin-bottom:14px;"></video>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <a id="inline-download-btn" href="#" download class="submit-btn" style="width:auto; padding:10px 20px; font-size:0.85rem; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+              <span>⬇️ Download Master MP4</span>
+            </a>
+            <button type="button" onclick="startNewVideo()" style="background:transparent; border:1px solid rgba(255,255,255,0.18); color:#94a3b8; padding:9px 16px; border-radius:10px; font-size:0.82rem; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.35)';" onmouseout="this.style.color='#94a3b8'; this.style.borderColor='rgba(255,255,255,0.18)';">
+              ✨ Direct Another Topic
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -991,6 +1013,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('sim-metric-sub').innerText = t.sub;
     }
 
+    let currentJobId = null;
+    let pollInterval = null;
+
+    function startNewVideo() {
+      document.getElementById('progress-box').style.display = 'none';
+      const player = document.getElementById('inline-video-player');
+      player.pause();
+      player.src = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('topic').focus();
+    }
+
     // Submit -> Triggers REAL Production Pipeline
     document.getElementById('studio-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -998,8 +1032,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       btn.disabled = true;
       btn.innerHTML = '<span>⏳ Production Pipeline Running...</span>';
 
+      // Reset progress overlay cleanly for this new run
       const progressBox = document.getElementById('progress-box');
       progressBox.style.display = 'block';
+      document.getElementById('inline-video-card').style.display = 'none';
+      const player = document.getElementById('inline-video-player');
+      player.pause();
+      player.src = '';
+
+      document.getElementById('progress-spinner').style.display = 'inline-block';
+      document.getElementById('progress-spinner').className = 'spinner';
+      document.getElementById('progress-spinner').innerHTML = '';
+      document.getElementById('progress-fill').style.width = '2%';
+      document.getElementById('progress-pct').innerText = '2%';
+      document.getElementById('progress-msg').innerText = 'Initializing production pipeline...';
+      document.getElementById('progress-sub').innerText = 'Running: Neural Voice Synthesis → Whisper Alignment → B-Roll → Remotion 1080p';
       progressBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       const spec = {
@@ -1012,44 +1059,70 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         createdAt: new Date().toISOString()
       };
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(spec)
-      });
-
-      // Poll progress every 1s
-      pollProgress();
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(spec)
+        });
+        const data = await res.json();
+        currentJobId = data.job_id;
+        pollProgress(currentJobId);
+      } catch (err) {
+        document.getElementById('progress-spinner').style.display = 'none';
+        document.getElementById('progress-msg').innerText = '❌ Failed to start: ' + err.message;
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+      }
     });
 
-    let pollInterval = null;
-    function pollProgress() {
+    function pollProgress(jobId) {
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(async () => {
-        const res = await fetch('/api/job-status');
-        if (!res.ok) return;
-        const job = await res.json();
+        try {
+          const res = await fetch('/api/job-status');
+          if (!res.ok) return;
+          const job = await res.json();
 
-        document.getElementById('progress-fill').style.width = job.percent + '%';
-        document.getElementById('progress-pct').innerText = job.percent + '%';
-        document.getElementById('progress-msg').innerText = job.message;
+          // Reject stale state from previous runs
+          if (jobId && job.job_id && job.job_id !== jobId) {
+            return;
+          }
 
-        if (job.status === 'completed' || job.percent >= 100) {
-          clearInterval(pollInterval);
-          document.getElementById('progress-spinner').style.display = 'none';
-          document.getElementById('progress-msg').innerText = '✨ Production Complete! Video rendered.';
-          document.getElementById('btn-submit').disabled = false;
-          document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+          document.getElementById('progress-fill').style.width = job.percent + '%';
+          document.getElementById('progress-pct').innerText = job.percent + '%';
+          document.getElementById('progress-msg').innerText = job.message;
 
-          loadGallery();
-          setTimeout(() => {
-            document.getElementById('gallery-section').scrollIntoView({ behavior: 'smooth' });
-          }, 800);
-        } else if (job.status === 'error') {
-          clearInterval(pollInterval);
-          document.getElementById('progress-spinner').style.display = 'none';
-          document.getElementById('progress-msg').innerText = '❌ Error: ' + job.error;
-          document.getElementById('btn-submit').disabled = false;
+          if (job.status === 'completed' || job.percent >= 100) {
+            clearInterval(pollInterval);
+            document.getElementById('progress-spinner').className = '';
+            document.getElementById('progress-spinner').innerHTML = '✅';
+            document.getElementById('progress-spinner').style.display = 'inline-block';
+            document.getElementById('progress-msg').innerText = '🎉 Production Complete! Your Master Video is Ready.';
+            document.getElementById('progress-sub').innerText = 'Full HD 1080p Master Render ready for playback & download';
+            document.getElementById('btn-submit').disabled = false;
+            document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+
+            // Show inline master video immediately
+            if (job.video_url) {
+              const inlineCard = document.getElementById('inline-video-card');
+              document.getElementById('inline-video-title').innerText = job.video_name || 'Master Render';
+              const player = document.getElementById('inline-video-player');
+              player.src = job.video_url;
+              document.getElementById('inline-download-btn').href = job.video_url;
+              inlineCard.style.display = 'block';
+            }
+
+            loadGallery();
+          } else if (job.status === 'error') {
+            clearInterval(pollInterval);
+            document.getElementById('progress-spinner').style.display = 'none';
+            document.getElementById('progress-msg').innerText = '❌ Error: ' + job.error;
+            document.getElementById('btn-submit').disabled = false;
+            document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+          }
+        } catch (e) {
+          console.warn('Poll error:', e);
         }
       }, 1000);
     }
@@ -1084,31 +1157,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
-def worker_generate(spec):
+def worker_generate(spec, job_id):
     global JOB_STATE
-    JOB_STATE["status"] = "running"
-    JOB_STATE["percent"] = 5
-    JOB_STATE["message"] = "Initializing automated video pipeline..."
-    JOB_STATE["error"] = None
-
     try:
         from tools import pipeline
 
         def status_cb(pct, msg):
-            JOB_STATE["percent"] = pct
-            JOB_STATE["message"] = msg
+            with JOB_LOCK:
+                if JOB_STATE.get("job_id") == job_id:
+                    JOB_STATE["percent"] = pct
+                    JOB_STATE["message"] = msg
 
         out_mp4 = pipeline.run_pipeline(spec, status_callback=status_cb)
-        JOB_STATE["status"] = "completed"
-        JOB_STATE["percent"] = 100
-        JOB_STATE["message"] = "Production complete! Video ready."
-        JOB_STATE["video_name"] = os.path.basename(out_mp4)
-        JOB_STATE["video_url"] = f"/files/renders/{os.path.basename(out_mp4)}"
+        with JOB_LOCK:
+            if JOB_STATE.get("job_id") == job_id:
+                JOB_STATE["status"] = "completed"
+                JOB_STATE["percent"] = 100
+                JOB_STATE["message"] = "Production complete! Master video ready."
+                JOB_STATE["video_name"] = os.path.basename(out_mp4)
+                JOB_STATE["video_url"] = f"/files/renders/{os.path.basename(out_mp4)}"
     except Exception as e:
         print(f"[Worker] Pipeline error: {e}", file=sys.stderr)
-        JOB_STATE["status"] = "error"
-        JOB_STATE["error"] = str(e)
-        JOB_STATE["message"] = f"Error: {e}"
+        with JOB_LOCK:
+            if JOB_STATE.get("job_id") == job_id:
+                JOB_STATE["status"] = "error"
+                JOB_STATE["error"] = str(e)
+                JOB_STATE["message"] = f"Error: {e}"
 
 class StudioHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -1124,7 +1198,9 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(JOB_STATE).encode("utf-8"))
+            with JOB_LOCK:
+                state_copy = dict(JOB_STATE)
+            self.wfile.write(json.dumps(state_copy).encode("utf-8"))
             return
 
         if parsed.path == "/api/renders":
@@ -1164,20 +1240,33 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
             body = self.rfile.read(length).decode("utf-8")
             spec = json.loads(body)
             
+            job_id = f"job_{int(time.time() * 1000)}"
+            with JOB_LOCK:
+                JOB_STATE.clear()
+                JOB_STATE.update({
+                    "job_id": job_id,
+                    "status": "running",
+                    "percent": 2,
+                    "message": f"Initializing pipeline for '{spec.get('topic', 'Explainer')}'...",
+                    "video_name": None,
+                    "video_url": None,
+                    "error": None
+                })
+
             os.makedirs(PROJECTS_DIR, exist_ok=True)
             task_path = os.path.join(PROJECTS_DIR, "current_task.json")
             with open(task_path, "w", encoding="utf-8") as f:
                 json.dump(spec, f, indent=2)
 
             # Start worker thread
-            t = threading.Thread(target=worker_generate, args=(spec,))
+            t = threading.Thread(target=worker_generate, args=(spec, job_id))
             t.daemon = True
             t.start()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "started", "task_path": task_path}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "started", "job_id": job_id, "task_path": task_path}).encode("utf-8"))
             return
 
         self.send_response(404)
