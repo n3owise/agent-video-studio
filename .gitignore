@@ -1,6 +1,8 @@
 # Environment & packages
 .venv/
 node_modules/
+**/node_modules/
+remotion-composer/node_modules
 __pycache__/
 *.pyc
 
@@ -14,6 +16,11 @@ remotion-composer/.remotion/
 *.tmp.mp4
 *.raw.mp4
 
-# Render outputs (optional to keep or gitignore)
+# Generated project files & assets (keep sample project)
+projects/
+remotion-composer/public/projects/*
+!remotion-composer/public/projects/coffee-belt-explainer/
+
+# Render outputs
 renders/*.mp4
 !renders/.gitkeep

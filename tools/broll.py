@@ -50,9 +50,20 @@ def fetch_broll(query_or_url: str, output_path: str, duration: float = 15.0):
 
     raw_temp = output_path + ".raw.mp4"
     print(f"[B-Roll] Downloading footage for '{query_or_url}'...")
+
+    py_exec = sys.executable
+    # Check local repo .venv first, then sibling OpenMontage .venv
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    local_venv = os.path.join(repo_root, ".venv", "bin", "python3")
+    sibling_venv = os.path.join(os.path.dirname(repo_root), "OpenMontage", ".venv", "bin", "python3")
+    
+    if os.path.exists(local_venv):
+        py_exec = local_venv
+    elif os.path.exists(sibling_venv):
+        py_exec = sibling_venv
     
     dl_cmd = [
-        "yt-dlp",
+        py_exec, "-m", "yt_dlp",
         "--no-playlist",
         "-f", "bestvideo[height<=1080][ext=mp4]/best[height<=1080]/best",
         "-o", raw_temp,

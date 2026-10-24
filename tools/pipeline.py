@@ -27,8 +27,11 @@ RENDERS_DIR = os.path.join(REPO_ROOT, "renders")
 
 # Resolve python executable with dependencies
 PYTHON_EXEC = sys.executable
+local_venv = os.path.join(REPO_ROOT, ".venv", "bin", "python3")
 candidate_venv = os.path.join(os.path.dirname(REPO_ROOT), "OpenMontage", ".venv", "bin", "python3")
-if os.path.exists(candidate_venv):
+if os.path.exists(local_venv):
+    PYTHON_EXEC = local_venv
+elif os.path.exists(candidate_venv):
     PYTHON_EXEC = candidate_venv
 
 def slugify(text: str) -> str:
@@ -70,44 +73,52 @@ def call_llm(prompt: str, system_prompt: str = "") -> str:
 
 def generate_script_and_scenes(topic: str, duration: int = 60):
     system_prompt = (
-        "You are an elite video director for high-retention 60-second explainer videos. "
-        "Write a narrative script with exactly 6 scenes totaling ~135 words. "
-        "Output ONLY a raw JSON object with keys: 'script' (string), and 'scenes' (array of 6 objects with: "
-        "'id', 'type' (one of: hero_title, stat_card, bar_chart, stat_card, bar_chart, text_card), "
-        "'title', 'subtitle', 'stat', 'broll_search' (search query for 1080p stock footage))."
+        "You are an elite YouTube documentarian & video director. "
+        "Write a 60-second word-for-word spoken voiceover script (~135 words) that will be read aloud by the narrator. "
+        "Do NOT include stage directions like 'Scene 1:'; only the actual spoken words. "
+        "Also plan exactly 6 scenes for Remotion motion graphics explainer. "
+        "Output ONLY a raw JSON object with keys: "
+        "'script': (string of the full 135-word voiceover), "
+        "'scenes': (array of 6 objects with keys:\n"
+        "  1. {'id': 'cut-1', 'type': 'hero_title', 'title': '...', 'subtitle': '...', 'broll_search': '...'}\n"
+        "  2. {'id': 'cut-2', 'type': 'stat_card', 'stat': '...', 'subtitle': '...', 'broll_search': '...'}\n"
+        "  3. {'id': 'cut-3', 'type': 'bar_chart', 'title': '...', 'chartData': [{'label': '...', 'value': 20}, {'label': '...', 'value': 65}, {'label': '...', 'value': 95}], 'broll_search': '...'}\n"
+        "  4. {'id': 'cut-4', 'type': 'stat_card', 'stat': '...', 'subtitle': '...', 'broll_search': '...'}\n"
+        "  5. {'id': 'cut-5', 'type': 'bar_chart', 'title': '...', 'chartData': [{'label': '...', 'value': 15}, {'label': '...', 'value': 50}, {'label': '...', 'value': 88}], 'broll_search': '...'}\n"
+        "  6. {'id': 'cut-6', 'type': 'text_card', 'title': '...', 'broll_search': '...'}\n"
+        "Each 'broll_search' MUST be an exact search phrase for 4K free stock video footage depicting the specific scene concept.)"
     )
     user_prompt = f"Topic: {topic}\nTarget duration: {duration} seconds."
     
     raw = call_llm(user_prompt, system_prompt)
     if raw:
         try:
-            # Clean possible markdown fencing
             clean = raw.strip()
             if clean.startswith("```"):
                 clean = re.sub(r"^```[a-zA-Z]*\n", "", clean)
                 clean = re.sub(r"\n```$", "", clean)
             parsed = json.loads(clean.strip())
-            if "script" in parsed and "scenes" in parsed:
+            if "script" in parsed and "scenes" in parsed and len(parsed["script"].split()) > 40:
                 return parsed["script"], parsed["scenes"]
         except Exception as e:
             print(f"[Pipeline] JSON parse fallback: {e}")
 
     # Solid Fallback if no LLM key or parse issue
     fallback_script = (
-        f"Why can't you simply explore {topic} without understanding its fundamental law? "
-        "After all, nature follows strict rules. "
-        "There is a fatal biological and physical limit: zero tolerance for imbalance. "
-        "A single extreme shift will destroy entire systems in hours. "
-        "This leaves only one narrow sustainable sanctuary where conditions align. "
-        f"Next time you study {topic}, remember: it survives Earth's narrowest tightrope."
+        f"Why is {topic} fundamentally transforming the modern world? "
+        "Behind the headlines lies an intricate web of technology and critical thresholds. "
+        "A single failure or vulnerability can destabilize entire systems in minutes. "
+        "Engineers and researchers are now racing against time to maintain equilibrium. "
+        "From raw computational intelligence to real-time precision monitoring, the stakes have never been higher. "
+        f"Next time you consider {topic}, remember: it survives on humanity's sharpest technological tightrope."
     )
     fallback_scenes = [
-        {"id": "cut-1", "type": "hero_title", "title": topic, "subtitle": "The Hidden Physical Reality", "broll_search": f"{topic} cinematic 4k"},
-        {"id": "cut-2", "type": "stat_card", "stat": "0° Critical Limit", "subtitle": "Biological & Physical Kryptonite", "broll_search": "freezing frost ice macro"},
-        {"id": "cut-3", "type": "bar_chart", "title": "System Tolerance Thresholds", "broll_search": "desert sun heatwave shimmering"},
-        {"id": "cut-4", "type": "stat_card", "stat": "25°N — 25°S", "subtitle": "The Narrow Equatorial Sanctuary", "broll_search": "earth rotating space globe"},
-        {"id": "cut-5", "type": "bar_chart", "title": "Highland Elevation Requirements", "broll_search": "mountain highlands aerial drone"},
-        {"id": "cut-6", "type": "text_card", "title": f"Every system survives Earth's narrowest tightrope.", "broll_search": "steaming hot cup"}
+        {"id": "cut-1", "type": "hero_title", "title": topic, "subtitle": "The High-Stakes Frontier", "broll_search": f"{topic} technology cinematic 4k"},
+        {"id": "cut-2", "type": "stat_card", "stat": "99.9% Precision", "subtitle": "Critical Autonomous Threshold", "broll_search": f"{topic} supercomputer radar"},
+        {"id": "cut-3", "type": "bar_chart", "title": "System Reaction Latency (ms)", "chartData": [{"label": "Baseline", "value": 25}, {"label": "Target", "value": 75}, {"label": "Peak", "value": 98}], "broll_search": f"{topic} server datacenter technology"},
+        {"id": "cut-4", "type": "stat_card", "stat": "Global Reach", "subtitle": "Strategic Planetary Equilibrium", "broll_search": "planet earth space global satellite"},
+        {"id": "cut-5", "type": "bar_chart", "title": "Computational Scale Growth", "chartData": [{"label": "Phase 1", "value": 20}, {"label": "Phase 2", "value": 55}, {"label": "Phase 3", "value": 90}], "broll_search": f"{topic} futuristic command center"},
+        {"id": "cut-6", "type": "text_card", "title": f"The future of {topic} is unfolding now.", "broll_search": f"{topic} modern science laboratory"}
     ]
     return fallback_script, fallback_scenes
 
@@ -157,42 +168,88 @@ def run_pipeline(spec: dict, status_callback=None):
         captions_data = json.load(f)
 
     # 4. Stock Video B-Roll
-    update(70, "Preparing 1080p B-roll footage layers...")
-    # Link or copy normalized sample clips to ensure zero-failure instant speed
+    update(64, f"Curating and fetching topic-accurate 1080p B-roll footage for '{topic}'...")
+    from tools import broll
     sample_videos = sorted(glob.glob(os.path.join(REPO_ROOT, "remotion-composer", "public", "projects", "coffee-belt-explainer", "assets", "video", "*.mp4")))
+    sample_sizes = set(os.path.getsize(sv) for sv in sample_videos if os.path.exists(sv))
+    is_coffee_topic = any(k in topic.lower() for k in ["coffee", "bean belt", "roast"])
+
     broll_paths = []
     for i, sc in enumerate(scenes[:6]):
         clip_name = f"scene_{i+1:02d}.mp4"
         dest_clip = os.path.join(video_assets_dir, clip_name)
+
+        # Purge stale placeholder coffee clips if this is a new or non-coffee topic
+        if os.path.exists(dest_clip) and not is_coffee_topic:
+            if os.path.getsize(dest_clip) in sample_sizes:
+                print(f"[Pipeline] Replacing placeholder coffee clip: {clip_name}")
+                try:
+                    os.remove(dest_clip)
+                except Exception:
+                    pass
+
+        search_query = sc.get("broll_search") or f"{topic} {sc.get('title', '')}".strip()
+
         if not os.path.exists(dest_clip):
-            if i < len(sample_videos):
-                import shutil
-                shutil.copyfile(sample_videos[i], dest_clip)
-            else:
-                # Fallback to copy first
-                import shutil
-                shutil.copyfile(sample_videos[0], dest_clip)
+            update(65 + i * 2, f"Downloading B-roll [{i+1}/6]: '{search_query[:32]}'...")
+            fetch_ok = False
+            try:
+                fetch_ok = broll.fetch_broll(search_query, dest_clip, duration=15.0)
+            except Exception as e:
+                print(f"[Pipeline] B-roll fetch error: {e}")
+
+            # If download fails, try a broader query based directly on the topic
+            if not fetch_ok or not os.path.exists(dest_clip) or os.path.getsize(dest_clip) == 0:
+                broad_query = f"{topic} technology footage"
+                print(f"[Pipeline] Retrying B-roll with broad query: '{broad_query}'")
+                try:
+                    fetch_ok = broll.fetch_broll(broad_query, dest_clip, duration=15.0)
+                except Exception as e:
+                    print(f"[Pipeline] Broad B-roll retry error: {e}")
+
+            # Only fallback to sample clips if network completely failed
+            if not os.path.exists(dest_clip) and sample_videos:
+                print(f"[Pipeline] Network fallback to sample video for {clip_name}")
+                shutil.copyfile(sample_videos[i % len(sample_videos)], dest_clip)
+
         broll_paths.append(f"projects/{slug}/assets/video/{clip_name}")
 
     # Copy background music if available
     sample_bgm = os.path.join(REPO_ROOT, "remotion-composer", "public", "projects", "coffee-belt-explainer", "bgm.mp3")
     dest_bgm = os.path.join(public_project_dir, "bgm.mp3")
     if os.path.exists(sample_bgm) and not os.path.exists(dest_bgm):
-        import shutil
         shutil.copyfile(sample_bgm, dest_bgm)
 
     # 5. Assemble Remotion Props
-    update(80, "Assembling Remotion motion graphics props...")
+    update(78, "Assembling Remotion motion graphics props...")
     
-    # Calculate scene timings
+    # Safe scene references
+    c1 = scenes[0] if len(scenes) > 0 else {}
+    c2 = scenes[1] if len(scenes) > 1 else {}
+    c3 = scenes[2] if len(scenes) > 2 else {}
+    c4 = scenes[3] if len(scenes) > 3 else {}
+    c5 = scenes[4] if len(scenes) > 4 else {}
+    c6 = scenes[5] if len(scenes) > 5 else {}
+
+    default_c3_chart = [
+        {"label": "Baseline", "value": 25},
+        {"label": "Target", "value": 70},
+        {"label": "Optimized", "value": 98}
+    ]
+    default_c5_chart = [
+        {"label": "Phase 1", "value": 20},
+        {"label": "Phase 2", "value": 55},
+        {"label": "Phase 3", "value": 92}
+    ]
+
     cuts = [
         {
             "id": "cut-1-hero",
             "type": "hero_title",
             "in_seconds": 0.0,
             "out_seconds": 8.2,
-            "text": scenes[0].get("title", topic),
-            "subtitle": scenes[0].get("subtitle", "The Hidden Science"),
+            "text": c1.get("title", topic),
+            "subtitle": c1.get("subtitle", "The Hidden Science"),
             "backgroundVideo": broll_paths[0],
             "backgroundOverlay": 0.48
         },
@@ -201,8 +258,8 @@ def run_pipeline(spec: dict, status_callback=None):
             "type": "stat_card",
             "in_seconds": 8.2,
             "out_seconds": 17.5,
-            "stat": scenes[1].get("stat", "0°C Limit"),
-            "subtitle": scenes[1].get("subtitle", "Biological Kryptonite"),
+            "stat": c2.get("stat", "99.9%"),
+            "subtitle": c2.get("subtitle", "Critical Threshold"),
             "accentColor": "#38BDF8",
             "backgroundVideo": broll_paths[1] if len(broll_paths) > 1 else broll_paths[0],
             "backgroundOverlay": 0.48
@@ -212,12 +269,8 @@ def run_pipeline(spec: dict, status_callback=None):
             "type": "bar_chart",
             "in_seconds": 17.5,
             "out_seconds": 28.0,
-            "title": scenes[2].get("title", "Temperature Limits (°C)"),
-            "chartData": [
-                {"label": "Freezing Point", "value": 0},
-                {"label": "Ideal Range", "value": 24},
-                {"label": "Heat Ceiling", "value": 40}
-            ],
+            "title": c3.get("title", "Comparative Analysis"),
+            "chartData": c3.get("chartData") or default_c3_chart,
             "chartColors": ["#38BDF8", "#34D399", "#F87171"],
             "showGrid": True,
             "showValues": True,
@@ -229,8 +282,8 @@ def run_pipeline(spec: dict, status_callback=None):
             "type": "stat_card",
             "in_seconds": 28.0,
             "out_seconds": 38.0,
-            "stat": scenes[3].get("stat", "25°N — 25°S"),
-            "subtitle": scenes[3].get("subtitle", "The Narrow Sanctuary"),
+            "stat": c4.get("stat", "Global Scale"),
+            "subtitle": c4.get("subtitle", "Strategic Scope"),
             "accentColor": "#FBBF24",
             "backgroundVideo": broll_paths[3] if len(broll_paths) > 3 else broll_paths[0],
             "backgroundOverlay": 0.48
@@ -240,12 +293,8 @@ def run_pipeline(spec: dict, status_callback=None):
             "type": "bar_chart",
             "in_seconds": 38.0,
             "out_seconds": 53.5,
-            "title": scenes[4].get("title", "Highland Elevation Requirements (m)"),
-            "chartData": [
-                {"label": "Sea Level", "value": 0},
-                {"label": "Robusta", "value": 600},
-                {"label": "Arabica Sweetspot", "value": 1800}
-            ],
+            "title": c5.get("title", "Growth & Impact Metrics"),
+            "chartData": c5.get("chartData") or default_c5_chart,
             "chartColors": ["#94A3B8", "#A78BFA", "#34D399"],
             "showGrid": True,
             "showValues": True,
@@ -257,7 +306,7 @@ def run_pipeline(spec: dict, status_callback=None):
             "type": "text_card",
             "in_seconds": 53.5,
             "out_seconds": 60.0,
-            "text": scenes[5].get("title", "Every system survived Earth's narrowest climate tightrope."),
+            "text": c6.get("title", f"The future of {topic} is unfolding now."),
             "color": "#F8FAFC",
             "backgroundVideo": broll_paths[5] if len(broll_paths) > 5 else broll_paths[0],
             "backgroundOverlay": 0.48
@@ -273,9 +322,6 @@ def run_pipeline(spec: dict, status_callback=None):
     remotion_props = {
         "theme": theme,
         "themeConfig": {
-            "primaryColor": "#D97706",
-            "accentColor": "#F59E0B",
-            "backgroundColor": "#120E0B",
             "captionHighlightColor": highlight_color,
             "springConfig": {"damping": 18, "stiffness": 100, "mass": 1}
         },
