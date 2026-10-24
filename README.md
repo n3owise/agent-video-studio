@@ -60,7 +60,7 @@ Please:
 
 ### 1. Clone & Install Dependencies (2 minutes)
 ```bash
-git clone https://github.com/your-username/agent-video-studio.git
+git clone https://github.com/n3owise/agent-video-studio.git
 cd agent-video-studio
 
 # Install Python audio & video tools
