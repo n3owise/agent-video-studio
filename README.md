@@ -76,6 +76,11 @@ Prefer clicking options instead of typing prompts? Launch the web dashboard:
 python studio.py
 ```
 Open **`http://localhost:5500`** in your browser:
+
+<p align="center">
+  <img src="examples/studio_ui.png" alt="Agent Video Studio Localhost UI" width="760" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);" />
+</p>
+
 - Pick your **Topic** (or click a quick suggestion pill).
 - Choose **Aspect Ratio** (`16:9` YouTube Widescreen or `9:16` TikTok / Reels).
 - Select **Neural Voice** (Andrew, Aria, Brian, Emma).
