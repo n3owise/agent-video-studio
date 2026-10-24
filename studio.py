@@ -8,6 +8,7 @@ Runs locally at http://localhost:5500
 import http.server
 import json
 import os
+import shutil
 import socketserver
 import urllib.parse
 import glob
@@ -679,6 +680,192 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       h1 { font-size: 2.1rem; }
       .glass-card { padding: 20px; }
     }
+
+    /* Voice Preview Pill */
+    .voice-preview-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .voice-preview-pill:hover {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .voice-preview-pill.playing {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #fbbf24;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    /* Production Workflow Mode Selector */
+    .workflow-toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .workflow-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface-inner);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-align: left;
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    .workflow-card:hover {
+      border-color: var(--card-hover);
+    }
+
+    .workflow-card.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.08);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 20px -8px var(--accent-glow);
+    }
+
+    .workflow-icon {
+      font-size: 1.3rem;
+      line-height: 1;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .workflow-card.active .workflow-icon {
+      background: rgba(245, 158, 11, 0.18);
+    }
+
+    .workflow-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .workflow-sub {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      line-height: 1.35;
+    }
+
+    /* Director Review Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 5, 10, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+      overflow-y: auto;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: #0b0f19;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      padding: 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(245, 158, 11, 0.15);
+      margin: auto;
+      position: relative;
+      animation: modalSlideUp 0.3s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .director-scenes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .director-scenes-grid { grid-template-columns: 1fr; }
+      .workflow-toggle-grid { grid-template-columns: 1fr; }
+    }
+
+    .scene-card-edit {
+      background: rgba(8, 11, 18, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+
+    .scene-card-edit:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      background: rgba(12, 16, 26, 0.85);
+    }
+
+    .scene-field-group {
+      margin-bottom: 10px;
+    }
+
+    .scene-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .scene-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(5, 7, 12, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .scene-input:focus {
+      border-color: rgba(245, 158, 11, 0.6);
+    }
   </style>
 </head>
 <body>
@@ -897,9 +1084,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
 
           <div>
-            <div class="label-row"><label>6. Neural Voice</label></div>
+            <div class="label-row">
+              <label>6. Neural Voice</label>
+              <button type="button" id="btn-voice-preview" class="voice-preview-pill" onclick="toggleVoicePreview()">
+                <span id="voice-preview-icon">▶</span> <span id="voice-preview-label">Sample Voice</span>
+              </button>
+            </div>
             <div class="custom-select-wrapper">
-              <select id="voice">
+              <select id="voice" onchange="onVoiceChanged()">
                 <option value="en-US-AndrewMultilingualNeural">Andrew (Warm & Expressive Male)</option>
                 <option value="en-US-AriaNeural">Aria (Crisp & Engaging Female)</option>
                 <option value="en-US-BrianNeural">Brian (Authoritative Documentary)</option>
@@ -913,9 +1105,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
         </div>
 
+        <!-- 7. Production Workflow Mode -->
+        <div class="field-group" style="margin-bottom: 22px;">
+          <div class="label-row">
+            <label>7. Production Workflow Mode</label>
+            <span class="label-hint" id="workflow-hint">Instant 1-click automated production</span>
+          </div>
+          <div class="workflow-toggle-grid">
+            <div class="workflow-card active" id="mode-instant" onclick="setWorkflowMode('instant')">
+              <span class="workflow-icon">⚡</span>
+              <div>
+                <div class="workflow-title">Instant 1-Click Render</div>
+                <div class="workflow-sub">Directly synthesize voice, B-roll & motion graphics in one automated run</div>
+              </div>
+            </div>
+            <div class="workflow-card" id="mode-director" onclick="setWorkflowMode('director')">
+              <span class="workflow-icon">🎬</span>
+              <div>
+                <div class="workflow-title">Director Review Mode</div>
+                <div class="workflow-sub">Review & edit narration script (~135 words), scene cards & B-roll queries before render</div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="workflowMode" value="instant" />
+        </div>
+
         <!-- Action Button -->
         <button type="submit" id="btn-submit" class="submit-btn">
-          <span>🚀 Generate & Render Full HD Video Now</span>
+          <span id="btn-submit-text">🚀 Generate & Render Full HD Video Now</span>
         </button>
       </form>
 
@@ -955,6 +1172,62 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- DIRECTOR REVIEW MODAL -->
+    <div id="director-modal" class="modal-overlay">
+      <div class="modal-dialog">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:16px;">
+          <div>
+            <div style="display:inline-flex; align-items:center; gap:8px; padding:4px 10px; border-radius:999px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); font-size:0.75rem; font-family:'JetBrains Mono',monospace; color:#fbbf24; margin-bottom:8px;">
+              <span>🎬 DIRECTOR REVIEW MODE</span>
+            </div>
+            <h2 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; color:#fff;">Review & Refine Video Production Plan</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Direct your voiceover script and scene visual parameters before commencing full HD rendering.</p>
+          </div>
+          <button type="button" onclick="closeDirectorModal()" style="background:transparent; border:none; color:var(--text-dim); font-size:1.5rem; cursor:pointer; padding:4px 8px; border-radius:8px; line-height:1; transition:color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-dim)'">✕</button>
+        </div>
+
+        <!-- Script Section -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">
+              🎙️ Spoken Voiceover Script
+            </label>
+            <span id="director-word-count-badge" style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:999px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); color:#38bdf8;">
+              0 words (Target: ~135)
+            </span>
+          </div>
+          <textarea id="director-script" rows="5" style="width:100%; padding:14px 16px; background:rgba(5,7,12,0.85); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:#f1f5f9; font-family:inherit; font-size:0.95rem; line-height:1.6; resize:vertical; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='rgba(245,158,11,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" oninput="updateDirectorWordCount()"></textarea>
+          <div style="font-size:0.74rem; color:var(--text-dim); margin-top:6px;">
+            This exact text will be read aloud by the neural narrator and timestamped millisecond-accurately by Whisper.
+          </div>
+        </div>
+
+        <!-- Scenes Architecture Grid -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">
+              🎞️ 6 Remotion Scene Architecture Cards
+            </label>
+            <span style="font-size:0.75rem; color:var(--text-dim); font-family:'JetBrains Mono',monospace;">Coordinated Cuts & Stock B-Roll</span>
+          </div>
+          <div id="director-scenes-container" class="director-scenes-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.08); padding-top:20px; flex-wrap:wrap; gap:12px;">
+          <button type="button" onclick="closeDirectorModal()" style="background:transparent; border:1px solid rgba(255,255,255,0.18); color:var(--text-muted); padding:12px 20px; border-radius:12px; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.35)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='rgba(255,255,255,0.18)';">
+            Cancel / Edit Setup
+          </button>
+          <button type="button" id="btn-approve-render" onclick="approveAndRender()" class="submit-btn" style="width:auto; margin-top:0; padding:14px 28px; font-size:1rem;">
+            <span>🚀 Approve Plan & Render Master Video</span>
+          </button>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Gallery -->
@@ -1013,6 +1286,203 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('sim-metric-sub').innerText = t.sub;
     }
 
+    // Voice Sample Previews
+    const VOICE_SAMPLES = {
+      'en-US-AndrewMultilingualNeural': '/samples/voices/andrew.mp3',
+      'en-US-AriaNeural': '/samples/voices/aria.mp3',
+      'en-US-BrianNeural': '/samples/voices/brian.mp3',
+      'en-US-EmmaMultilingualNeural': '/samples/voices/emma.mp3',
+      'en-US-GuyNeural': '/samples/voices/guy.mp3'
+    };
+
+    let voiceAudio = new Audio();
+    let isPlayingVoice = false;
+
+    function resetVoiceButton() {
+      isPlayingVoice = false;
+      const icon = document.getElementById('voice-preview-icon');
+      const btn = document.getElementById('btn-voice-preview');
+      if (icon) icon.innerText = '▶';
+      if (btn) btn.classList.remove('playing');
+    }
+
+    function toggleVoicePreview() {
+      const voiceSelect = document.getElementById('voice');
+      const src = VOICE_SAMPLES[voiceSelect.value] || '/samples/voices/andrew.mp3';
+
+      if (isPlayingVoice) {
+        voiceAudio.pause();
+        resetVoiceButton();
+      } else {
+        if (!voiceAudio.src.endsWith(src)) {
+          voiceAudio.src = src;
+        }
+        voiceAudio.currentTime = 0;
+        voiceAudio.play().then(() => {
+          isPlayingVoice = true;
+          document.getElementById('voice-preview-icon').innerText = '⏸';
+          document.getElementById('btn-voice-preview').classList.add('playing');
+        }).catch(err => {
+          console.warn("Audio playback error:", err);
+          resetVoiceButton();
+        });
+      }
+    }
+
+    function onVoiceChanged() {
+      const wasPlaying = isPlayingVoice;
+      voiceAudio.pause();
+      resetVoiceButton();
+      const voiceSelect = document.getElementById('voice');
+      const src = VOICE_SAMPLES[voiceSelect.value] || '/samples/voices/andrew.mp3';
+      voiceAudio.src = src;
+      if (wasPlaying) {
+        toggleVoicePreview();
+      }
+    }
+
+    voiceAudio.addEventListener('ended', resetVoiceButton);
+    voiceAudio.addEventListener('pause', () => {
+      if (voiceAudio.currentTime === 0 || voiceAudio.ended) {
+        resetVoiceButton();
+      }
+    });
+
+    // Workflow Mode Toggle
+    function setWorkflowMode(mode) {
+      document.getElementById('workflowMode').value = mode;
+      document.getElementById('mode-instant').classList.toggle('active', mode === 'instant');
+      document.getElementById('mode-director').classList.toggle('active', mode === 'director');
+
+      const submitText = document.getElementById('btn-submit-text');
+      const hint = document.getElementById('workflow-hint');
+      if (mode === 'director') {
+        submitText.innerHTML = '🎬 Generate Director Plan & Review';
+        hint.innerText = 'Review & edit script & scene architecture before render';
+      } else {
+        submitText.innerHTML = '🚀 Generate & Render Full HD Video Now';
+        hint.innerText = 'Instant 1-click automated production';
+      }
+    }
+
+    // Director Review Modal Logic
+    let cachedPlanScenes = [];
+
+    function updateDirectorWordCount() {
+      const text = document.getElementById('director-script').value.trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      const badge = document.getElementById('director-word-count-badge');
+      badge.innerText = `${words} words (Target: ~135)`;
+      if (words >= 110 && words <= 160) {
+        badge.style.color = '#34d399';
+        badge.style.borderColor = 'rgba(52,211,153,0.3)';
+        badge.style.background = 'rgba(52,211,153,0.1)';
+      } else {
+        badge.style.color = '#38bdf8';
+        badge.style.borderColor = 'rgba(56,189,248,0.3)';
+        badge.style.background = 'rgba(56,189,248,0.1)';
+      }
+    }
+
+    function openDirectorModal() {
+      const modal = document.getElementById('director-modal');
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDirectorModal() {
+      const modal = document.getElementById('director-modal');
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderDirectorScenes(scenes) {
+      cachedPlanScenes = scenes || [];
+      const container = document.getElementById('director-scenes-container');
+      const typeBadges = {
+        'hero_title': { label: 'Hero Hook', color: '#f59e0b', icon: '🌟' },
+        'stat_card': { label: 'Stat Metric', color: '#38bdf8', icon: '📊' },
+        'bar_chart': { label: 'Data Chart', color: '#34d399', icon: '📈' },
+        'text_card': { label: 'Outro Impact', color: '#a78bfa', icon: '🎬' }
+      };
+
+      container.innerHTML = scenes.map((sc, i) => {
+        const typeInfo = typeBadges[sc.type] || { label: sc.type, color: '#94a3b8', icon: '🎞️' };
+        const hasTitle = sc.title !== undefined;
+        const hasStat = sc.stat !== undefined;
+        const hasSubtitle = sc.subtitle !== undefined;
+        const brollVal = sc.broll_search || '';
+
+        return `
+          <div class="scene-card-edit" id="scene-card-${i}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:1rem;">${typeInfo.icon}</span>
+                <span style="font-weight:700; font-size:0.85rem; color:#fff;">Scene ${i+1}</span>
+              </div>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:999px; background:${typeInfo.color}22; color:${typeInfo.color}; border:1px solid ${typeInfo.color}44;">
+                ${typeInfo.label.toUpperCase()}
+              </span>
+            </div>
+
+            ${hasTitle ? `
+              <div class="scene-field-group">
+                <label class="scene-label">Title / Main Text</label>
+                <input type="text" class="scene-input scene-title" value="${escapeHtml(sc.title || '')}" />
+              </div>
+            ` : ''}
+
+            ${hasStat ? `
+              <div class="scene-field-group">
+                <label class="scene-label">Metric Value</label>
+                <input type="text" class="scene-input scene-stat" value="${escapeHtml(sc.stat || '')}" />
+              </div>
+            ` : ''}
+
+            ${hasSubtitle ? `
+              <div class="scene-field-group">
+                <label class="scene-label">Subtitle / Description</label>
+                <input type="text" class="scene-input scene-subtitle" value="${escapeHtml(sc.subtitle || '')}" />
+              </div>
+            ` : ''}
+
+            <div class="scene-field-group" style="margin-bottom:0;">
+              <label class="scene-label">🎬 Stock B-Roll Query</label>
+              <input type="text" class="scene-input scene-broll" value="${escapeHtml(brollVal)}" />
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function approveAndRender() {
+      const customScript = document.getElementById('director-script').value;
+      const customScenes = cachedPlanScenes.map((sc, i) => {
+        const card = document.getElementById(`scene-card-${i}`);
+        if (!card) return sc;
+        const updated = { ...sc };
+        const titleInp = card.querySelector('.scene-title');
+        const statInp = card.querySelector('.scene-stat');
+        const subInp = card.querySelector('.scene-subtitle');
+        const brollInp = card.querySelector('.scene-broll');
+        if (titleInp) updated.title = titleInp.value;
+        if (statInp) updated.stat = statInp.value;
+        if (subInp) updated.subtitle = subInp.value;
+        if (brollInp) updated.broll_search = brollInp.value;
+        return updated;
+      });
+
+      closeDirectorModal();
+      executeGeneration({
+        custom_script: customScript,
+        custom_scenes: customScenes
+      });
+    }
+
     let currentJobId = null;
     let pollInterval = null;
 
@@ -1025,12 +1495,55 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('topic').focus();
     }
 
-    // Submit -> Triggers REAL Production Pipeline
+    // Submit -> Dispatches either Instant Render or Director Review Plan
     document.getElementById('studio-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const mode = document.getElementById('workflowMode').value;
+      if (mode === 'director') {
+        await openDirectorPlan();
+      } else {
+        executeGeneration();
+      }
+    });
+
+    async function openDirectorPlan() {
       const btn = document.getElementById('btn-submit');
+      const submitText = document.getElementById('btn-submit-text');
       btn.disabled = true;
-      btn.innerHTML = '<span>⏳ Production Pipeline Running...</span>';
+      submitText.innerHTML = '<span>⏳ Planning Script & Scene Architecture...</span>';
+
+      const topic = document.getElementById('topic').value;
+      const duration = parseInt(document.getElementById('duration').value);
+
+      try {
+        const res = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, duration })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          document.getElementById('director-script').value = data.script;
+          renderDirectorScenes(data.scenes);
+          updateDirectorWordCount();
+          openDirectorModal();
+        } else {
+          alert('Failed to generate director plan: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error connecting to planner API: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        const mode = document.getElementById('workflowMode').value;
+        submitText.innerHTML = mode === 'director' ? '<span>🎬 Generate Director Plan & Review</span>' : '<span>🚀 Generate & Render Full HD Video Now</span>';
+      }
+    }
+
+    async function executeGeneration(extraSpec = {}) {
+      const btn = document.getElementById('btn-submit');
+      const submitText = document.getElementById('btn-submit-text');
+      btn.disabled = true;
+      submitText.innerHTML = '<span>⏳ Production Pipeline Running...</span>';
 
       // Reset progress overlay cleanly for this new run
       const progressBox = document.getElementById('progress-box');
@@ -1056,7 +1569,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         voice: document.getElementById('voice').value,
         captionStyle: document.getElementById('captionStyle').value,
         theme: document.getElementById('theme').value,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        ...extraSpec
       };
 
       try {
@@ -1072,9 +1586,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         document.getElementById('progress-spinner').style.display = 'none';
         document.getElementById('progress-msg').innerText = '❌ Failed to start: ' + err.message;
         btn.disabled = false;
-        btn.innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+        const mode = document.getElementById('workflowMode').value;
+        submitText.innerHTML = mode === 'director' ? '<span>🎬 Generate Director Plan & Review</span>' : '<span>🚀 Generate & Render Full HD Video Now</span>';
       }
-    });
+    }
 
     function pollProgress(jobId) {
       if (pollInterval) clearInterval(pollInterval);
@@ -1101,7 +1616,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('progress-msg').innerText = '🎉 Production Complete! Your Master Video is Ready.';
             document.getElementById('progress-sub').innerText = 'Full HD 1080p Master Render ready for playback & download';
             document.getElementById('btn-submit').disabled = false;
-            document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+            const mode = document.getElementById('workflowMode').value;
+            document.getElementById('btn-submit-text').innerHTML = mode === 'director' ? '<span>🎬 Generate Director Plan & Review</span>' : '<span>🚀 Generate & Render Full HD Video Now</span>';
 
             // Show inline master video immediately
             if (job.video_url) {
@@ -1119,7 +1635,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('progress-spinner').style.display = 'none';
             document.getElementById('progress-msg').innerText = '❌ Error: ' + job.error;
             document.getElementById('btn-submit').disabled = false;
-            document.getElementById('btn-submit').innerHTML = '<span>🚀 Generate & Render Full HD Video Now</span>';
+            const mode = document.getElementById('workflowMode').value;
+            document.getElementById('btn-submit-text').innerHTML = mode === 'director' ? '<span>🎬 Generate Director Plan & Review</span>' : '<span>🚀 Generate & Render Full HD Video Now</span>';
           }
         } catch (e) {
           console.warn('Poll error:', e);
@@ -1185,6 +1702,76 @@ def worker_generate(spec, job_id):
                 JOB_STATE["message"] = f"Error: {e}"
 
 class StudioHandler(http.server.SimpleHTTPRequestHandler):
+    def _serve_file(self, full_path):
+        if not (os.path.exists(full_path) and os.path.isfile(full_path)):
+            self.send_error(404, "File Not Found")
+            return
+
+        file_size = os.path.getsize(full_path)
+        if full_path.endswith(".mp4"):
+            content_type = "video/mp4"
+        elif full_path.endswith(".mp3"):
+            content_type = "audio/mpeg"
+        elif full_path.endswith(".json"):
+            content_type = "application/json"
+        elif full_path.endswith(".vtt"):
+            content_type = "text/vtt"
+        elif full_path.endswith(".html"):
+            content_type = "text/html; charset=utf-8"
+        else:
+            content_type = "application/octet-stream"
+
+        range_header = self.headers.get("Range")
+        if range_header and range_header.startswith("bytes="):
+            try:
+                bytes_range = range_header.split("=")[1].strip()
+                parts = bytes_range.split("-")
+                start = int(parts[0]) if parts[0] else 0
+                end = int(parts[1]) if parts[1] else file_size - 1
+            except Exception:
+                start, end = 0, file_size - 1
+
+            if start >= file_size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{file_size}")
+                self.end_headers()
+                return
+
+            end = min(end, file_size - 1)
+            chunk_len = end - start + 1
+
+            self.send_response(206)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+            self.send_header("Content-Length", str(chunk_len))
+            self.end_headers()
+
+            with open(full_path, "rb") as f:
+                f.seek(start)
+                remaining = chunk_len
+                buffer_size = 64 * 1024
+                while remaining > 0:
+                    to_read = min(remaining, buffer_size)
+                    buf = f.read(to_read)
+                    if not buf:
+                        break
+                    try:
+                        self.wfile.write(buf)
+                    except (BrokenPipeError, ConnectionResetError):
+                        break
+                    remaining -= len(buf)
+            return
+        else:
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(file_size))
+            self.end_headers()
+            with open(full_path, "rb") as f:
+                shutil.copyfileobj(f, self.wfile)
+            return
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/" or parsed.path == "/index.html":
@@ -1219,70 +1806,50 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(video_files).encode("utf-8"))
             return
 
+        if parsed.path.startswith("/samples/"):
+            rel_path = parsed.path[len("/samples/"):]
+            full_path = os.path.join(REPO_ROOT, "remotion-composer", "public", "samples", rel_path)
+            self._serve_file(full_path)
+            return
+
         if parsed.path.startswith("/files/"):
             rel_path = parsed.path[len("/files/"):]
             full_path = os.path.join(REPO_ROOT, rel_path)
-            if not (os.path.exists(full_path) and os.path.isfile(full_path)):
-                self.send_error(404, "File Not Found")
-                return
-
-            file_size = os.path.getsize(full_path)
-            content_type = "video/mp4" if full_path.endswith(".mp4") else "application/octet-stream"
-
-            range_header = self.headers.get("Range")
-            if range_header and range_header.startswith("bytes="):
-                try:
-                    bytes_range = range_header.split("=")[1].strip()
-                    parts = bytes_range.split("-")
-                    start = int(parts[0]) if parts[0] else 0
-                    end = int(parts[1]) if parts[1] else file_size - 1
-                except Exception:
-                    start, end = 0, file_size - 1
-
-                if start >= file_size:
-                    self.send_response(416)
-                    self.send_header("Content-Range", f"bytes */{file_size}")
-                    self.end_headers()
-                    return
-
-                end = min(end, file_size - 1)
-                chunk_len = end - start + 1
-
-                self.send_response(206)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Accept-Ranges", "bytes")
-                self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
-                self.send_header("Content-Length", str(chunk_len))
-                self.end_headers()
-
-                with open(full_path, "rb") as f:
-                    f.seek(start)
-                    remaining = chunk_len
-                    buffer_size = 64 * 1024
-                    while remaining > 0:
-                        to_read = min(remaining, buffer_size)
-                        buf = f.read(to_read)
-                        if not buf:
-                            break
-                        try:
-                            self.wfile.write(buf)
-                        except (BrokenPipeError, ConnectionResetError):
-                            break
-                        remaining -= len(buf)
-                return
-            else:
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Accept-Ranges", "bytes")
-                self.send_header("Content-Length", str(file_size))
-                self.end_headers()
-                with open(full_path, "rb") as f:
-                    shutil.copyfileobj(f, self.wfile)
-                return
+            self._serve_file(full_path)
+            return
 
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/plan":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode("utf-8")
+            data = json.loads(body) if body else {}
+            topic = data.get("topic", "Why Coffee Only Grows in the Bean Belt")
+            duration = int(data.get("duration", 60))
+
+            try:
+                from tools import pipeline
+                script_text, scenes = pipeline.generate_script_and_scenes(topic, duration)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "ok",
+                    "script": script_text,
+                    "scenes": scenes
+                }).encode("utf-8"))
+            except Exception as e:
+                print(f"[Studio] Plan error: {e}", file=sys.stderr)
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "error": str(e)
+                }).encode("utf-8"))
+            return
+
         if self.path == "/api/generate":
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length).decode("utf-8")
@@ -1324,12 +1891,12 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-def run_server():
+def run_server(auto_open: bool = True):
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     os.makedirs(RENDERS_DIR, exist_ok=True)
     
     # Auto-open browser by default
-    if "--no-open" not in sys.argv:
+    if auto_open and "--no-open" not in sys.argv:
         def open_browser():
             import webbrowser
             time.sleep(0.8)
@@ -1348,5 +1915,37 @@ def run_server():
         except KeyboardInterrupt:
             print("\nStudio server stopped.")
 
+def main():
+    global PORT
+    import argparse
+    parser = argparse.ArgumentParser(description="Agent Video Studio Control Center")
+    parser.add_argument("--render", action="store_true", help="Run headlessly in terminal and render the full video")
+    parser.add_argument("--topic", type=str, default="Why Coffee Only Grows in the Bean Belt", help="Topic string to render")
+    parser.add_argument("--format", type=str, default="16:9", choices=["16:9", "9:16"], help="Aspect ratio (16:9 or 9:16)")
+    parser.add_argument("--voice", type=str, default="en-US-AndrewMultilingualNeural", help="Voice name (default: en-US-AndrewMultilingualNeural)")
+    parser.add_argument("--theme", type=str, default="flat-motion-graphics", help="Theme palette (default: flat-motion-graphics)")
+    parser.add_argument("--caption", type=str, default="kinetic-gold", help="Caption style (default: kinetic-gold)")
+    parser.add_argument("--duration", type=int, default=60, help="Duration in seconds (default: 60)")
+    parser.add_argument("--port", type=int, default=PORT, help=f"Server port (default: {PORT})")
+    parser.add_argument("--no-open", action="store_true", help="Do not auto-open browser")
+    args = parser.parse_args()
+
+    if args.render:
+        from tools import pipeline
+        spec = {
+            "topic": args.topic,
+            "format": args.format,
+            "voice": args.voice,
+            "theme": args.theme,
+            "captionStyle": args.caption,
+            "duration": args.duration,
+        }
+        out_mp4 = pipeline.run_pipeline(spec)
+        abs_mp4 = os.path.abspath(out_mp4)
+        print(f"✨ Video Rendered Successfully: {abs_mp4}")
+    else:
+        PORT = args.port
+        run_server(auto_open=not args.no_open)
+
 if __name__ == "__main__":
-    run_server()
+    main()

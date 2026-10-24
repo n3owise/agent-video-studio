@@ -55,7 +55,17 @@ Install and run https://github.com/n3owise/agent-video-studio
 ```
 *(Automatically checks packages, launches the server, and opens your browser to `http://localhost:5500`)*
 
-### Option B: Step-by-Step
+### Option B: 1-Line Headless CLI Mode (Agents & Terminal)
+Render videos directly from the command line without opening a browser:
+```bash
+# Using the clean 1-line shell wrapper
+./cli.sh --topic "The Fermi Paradox" --format 9:16
+
+# Or using Python directly
+python3 studio.py --render --topic "The Fermi Paradox" --format 9:16 --duration 60
+```
+
+### Option C: Step-by-Step UI Setup
 ```bash
 git clone https://github.com/n3owise/agent-video-studio.git
 cd agent-video-studio
@@ -77,8 +87,9 @@ python3 studio.py
 #### In the Localhost UI:
 - **Live Visual Simulator:** See live caption animations and theme color palettes change in real-time as you click.
 - **Aspect Ratio:** Toggle between **16:9 Landscape** (YouTube) and **9:16 Vertical** (TikTok / Reels / Shorts).
-- **Neural Voice & Style:** Pick expressive neural voices (Andrew, Aria, Brian, Emma) and kinetic caption highlight styles.
-- **1-Click Generation:** Click **`[ 🚀 Generate & Render Full HD Video Now ]`**. The backend will automatically write the script, synthesize audio, align captions, fetch B-roll, and render your Full HD MP4 with a live progress bar!
+- **Interactive Voice Sampler:** Click `[▶ Sample Voice]` beside the voice selector to audition each neural voice (Andrew, Aria, Brian, Emma, Guy) with instant playback before rendering.
+- **Director Review Mode:** Toggle between `⚡ Instant 1-Click Render` and `🎬 Director Review Mode`. Inspect and refine the ~135-word voiceover script (with live word counter), adjust the 6 scene cards (titles, metric stats, subtitles), and edit stock B-roll queries before approving master render!
+- **1-Click Generation:** Click **`[ 🚀 Generate & Render Full HD Video Now ]`**. The backend will automatically synthesize audio, align captions, fetch B-roll, and render your Full HD MP4 with a live progress bar!
 - **Instant Playback & Download:** Once finished, the video automatically loads in the browser player ready to watch and download.
 
 ---

@@ -10,17 +10,22 @@ import subprocess
 import sys
 import shutil
 
-def normalize_video(input_path: str, output_path: str, duration: float = 15.0, loop_count: int = 1):
+def normalize_video(input_path: str, output_path: str, duration: float = 15.0, loop_count: int = 1, aspect_ratio: str = "16:9"):
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     temp_out = output_path + ".tmp.mp4"
     
-    # Scale to 1920x1080, 30fps, remove audio, h264
+    if aspect_ratio == "9:16":
+        vf_filter = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30"
+    else:
+        vf_filter = "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30"
+
+    # Scale to target aspect ratio, 30fps, remove audio, h264
     cmd = [
         "ffmpeg", "-y",
         "-stream_loop", str(loop_count),
         "-i", input_path,
         "-t", str(duration),
-        "-vf", "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30",
+        "-vf", vf_filter,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "fast", "-crf", "22",
         "-an",
         temp_out
@@ -36,12 +41,12 @@ def normalize_video(input_path: str, output_path: str, duration: float = 15.0, l
     print(f"[B-Roll] Normalized clip saved to: {output_path}")
     return True
 
-def fetch_broll(query_or_url: str, output_path: str, duration: float = 15.0):
+def fetch_broll(query_or_url: str, output_path: str, duration: float = 15.0, aspect_ratio: str = "16:9"):
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     
     # If it's a local file, just normalize it
     if os.path.exists(query_or_url):
-        return normalize_video(query_or_url, output_path, duration, loop_count=2)
+        return normalize_video(query_or_url, output_path, duration, loop_count=2, aspect_ratio=aspect_ratio)
         
     # If it's a URL or search query
     target_url = query_or_url
@@ -74,7 +79,7 @@ def fetch_broll(query_or_url: str, output_path: str, duration: float = 15.0):
         print(f"Download failed: {res.stderr}", file=sys.stderr)
         return False
 
-    success = normalize_video(raw_temp, output_path, duration, loop_count=2)
+    success = normalize_video(raw_temp, output_path, duration, loop_count=2, aspect_ratio=aspect_ratio)
     if os.path.exists(raw_temp):
         os.remove(raw_temp)
     return success
@@ -84,9 +89,10 @@ def main():
     parser.add_argument("--query", "-q", required=True, help="Search term (e.g. 'coffee plantation drone') or video URL or local file")
     parser.add_argument("--out", "-o", required=True, help="Path to output .mp4 file")
     parser.add_argument("--duration", "-d", type=float, default=15.0, help="Clip duration in seconds")
+    parser.add_argument("--format", "--aspect-ratio", "-ar", dest="format", default="16:9", choices=["16:9", "9:16"], help="Aspect ratio (16:9 or 9:16)")
     args = parser.parse_args()
 
-    fetch_broll(args.query, args.out, args.duration)
+    fetch_broll(args.query, args.out, args.duration, aspect_ratio=args.format)
 
 if __name__ == "__main__":
     main()

@@ -10,6 +10,7 @@ Converts any topic into a Full HD motion graphics explainer video with:
 """
 
 import argparse
+import concurrent.futures
 import glob
 import json
 import os
@@ -17,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 
@@ -133,6 +135,7 @@ def run_pipeline(spec: dict, status_callback=None):
     theme = spec.get("theme", "flat-motion-graphics")
     caption_style = spec.get("captionStyle", "kinetic-gold")
     duration = spec.get("duration", 60)
+    aspect_ratio = spec.get("format", "16:9")
     
     slug = slugify(topic)
     project_dir = os.path.join(PROJECTS_DIR, slug)
@@ -145,8 +148,25 @@ def run_pipeline(spec: dict, status_callback=None):
     os.makedirs(video_assets_dir, exist_ok=True)
 
     # 1. Script & Scenes
-    update(15, f"Generating narrative script & scene plan for '{topic}'...")
-    script_text, scenes = generate_script_and_scenes(topic, duration)
+    custom_script = spec.get("custom_script")
+    custom_scenes = spec.get("custom_scenes")
+
+    if custom_script and custom_scenes:
+        update(15, f"Using director-approved custom script & scene plan for '{topic}'...")
+        script_text = custom_script
+        scenes = custom_scenes
+    elif custom_script:
+        update(15, f"Using director-approved custom script for '{topic}'...")
+        script_text = custom_script
+        _, scenes = generate_script_and_scenes(topic, duration)
+    elif custom_scenes:
+        update(15, f"Using director-approved custom scene plan for '{topic}'...")
+        scenes = custom_scenes
+        script_text, _ = generate_script_and_scenes(topic, duration)
+    else:
+        update(15, f"Generating narrative script & scene plan for '{topic}'...")
+        script_text, scenes = generate_script_and_scenes(topic, duration)
+
     script_path = os.path.join(project_dir, "script.txt")
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(script_text)
@@ -174,27 +194,32 @@ def run_pipeline(spec: dict, status_callback=None):
     sample_sizes = set(os.path.getsize(sv) for sv in sample_videos if os.path.exists(sv))
     is_coffee_topic = any(k in topic.lower() for k in ["coffee", "bean belt", "roast"])
 
-    broll_paths = []
-    for i, sc in enumerate(scenes[:6]):
+    scenes_to_process = scenes[:6]
+    total_clips = len(scenes_to_process)
+    completed_lock = threading.Lock()
+    completed_count = 0
+
+    def download_worker(item):
+        nonlocal completed_count
+        i, sc = item
         clip_name = f"scene_{i+1:02d}.mp4"
         dest_clip = os.path.join(video_assets_dir, clip_name)
 
         # Purge stale placeholder coffee clips if this is a new or non-coffee topic
         if os.path.exists(dest_clip) and not is_coffee_topic:
-            if os.path.getsize(dest_clip) in sample_sizes:
-                print(f"[Pipeline] Replacing placeholder coffee clip: {clip_name}")
-                try:
+            try:
+                if os.path.getsize(dest_clip) in sample_sizes:
+                    print(f"[Pipeline] Replacing placeholder coffee clip: {clip_name}")
                     os.remove(dest_clip)
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
         search_query = sc.get("broll_search") or f"{topic} {sc.get('title', '')}".strip()
 
         if not os.path.exists(dest_clip):
-            update(65 + i * 2, f"Downloading B-roll [{i+1}/6]: '{search_query[:32]}'...")
             fetch_ok = False
             try:
-                fetch_ok = broll.fetch_broll(search_query, dest_clip, duration=15.0)
+                fetch_ok = broll.fetch_broll(search_query, dest_clip, duration=15.0, aspect_ratio=aspect_ratio)
             except Exception as e:
                 print(f"[Pipeline] B-roll fetch error: {e}")
 
@@ -203,16 +228,31 @@ def run_pipeline(spec: dict, status_callback=None):
                 broad_query = f"{topic} technology footage"
                 print(f"[Pipeline] Retrying B-roll with broad query: '{broad_query}'")
                 try:
-                    fetch_ok = broll.fetch_broll(broad_query, dest_clip, duration=15.0)
+                    fetch_ok = broll.fetch_broll(broad_query, dest_clip, duration=15.0, aspect_ratio=aspect_ratio)
                 except Exception as e:
                     print(f"[Pipeline] Broad B-roll retry error: {e}")
 
             # Only fallback to sample clips if network completely failed
             if not os.path.exists(dest_clip) and sample_videos:
+                sample_src = sample_videos[i % len(sample_videos)]
                 print(f"[Pipeline] Network fallback to sample video for {clip_name}")
-                shutil.copyfile(sample_videos[i % len(sample_videos)], dest_clip)
+                try:
+                    broll.normalize_video(sample_src, dest_clip, duration=15.0, aspect_ratio=aspect_ratio)
+                except Exception:
+                    shutil.copyfile(sample_src, dest_clip)
 
-        broll_paths.append(f"projects/{slug}/assets/video/{clip_name}")
+        with completed_lock:
+            completed_count += 1
+            pct = 64 + int((completed_count / total_clips) * 14) if total_clips > 0 else 78
+            update(pct, f"Parallel B-roll [{completed_count}/{total_clips}] fetched: '{search_query[:28]}'...")
+
+    if total_clips > 0:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            list(executor.map(download_worker, enumerate(scenes_to_process)))
+
+    broll_paths = [f"projects/{slug}/assets/video/scene_{i+1:02d}.mp4" for i in range(total_clips)]
+    if not broll_paths:
+        broll_paths = [""]
 
     # Copy background music if available
     sample_bgm = os.path.join(REPO_ROOT, "remotion-composer", "public", "projects", "coffee-belt-explainer", "bgm.mp3")
@@ -242,13 +282,15 @@ def run_pipeline(spec: dict, status_callback=None):
         {"label": "Phase 3", "value": 92}
     ]
 
+    dur_factor = float(duration) / 60.0
+
     cuts = [
         {
             "id": "cut-1-hero",
             "type": "hero_title",
-            "in_seconds": 0.0,
-            "out_seconds": 8.2,
-            "text": c1.get("title", topic),
+            "in_seconds": round(0.0 * dur_factor, 2),
+            "out_seconds": round(8.2 * dur_factor, 2),
+            "text": c1.get("title") or c1.get("text") or topic,
             "subtitle": c1.get("subtitle", "The Hidden Science"),
             "backgroundVideo": broll_paths[0],
             "backgroundOverlay": 0.48
@@ -256,8 +298,8 @@ def run_pipeline(spec: dict, status_callback=None):
         {
             "id": "cut-2-stat",
             "type": "stat_card",
-            "in_seconds": 8.2,
-            "out_seconds": 17.5,
+            "in_seconds": round(8.2 * dur_factor, 2),
+            "out_seconds": round(17.5 * dur_factor, 2),
             "stat": c2.get("stat", "99.9%"),
             "subtitle": c2.get("subtitle", "Critical Threshold"),
             "accentColor": "#38BDF8",
@@ -267,8 +309,8 @@ def run_pipeline(spec: dict, status_callback=None):
         {
             "id": "cut-3-chart",
             "type": "bar_chart",
-            "in_seconds": 17.5,
-            "out_seconds": 28.0,
+            "in_seconds": round(17.5 * dur_factor, 2),
+            "out_seconds": round(28.0 * dur_factor, 2),
             "title": c3.get("title", "Comparative Analysis"),
             "chartData": c3.get("chartData") or default_c3_chart,
             "chartColors": ["#38BDF8", "#34D399", "#F87171"],
@@ -280,8 +322,8 @@ def run_pipeline(spec: dict, status_callback=None):
         {
             "id": "cut-4-belt",
             "type": "stat_card",
-            "in_seconds": 28.0,
-            "out_seconds": 38.0,
+            "in_seconds": round(28.0 * dur_factor, 2),
+            "out_seconds": round(38.0 * dur_factor, 2),
             "stat": c4.get("stat", "Global Scale"),
             "subtitle": c4.get("subtitle", "Strategic Scope"),
             "accentColor": "#FBBF24",
@@ -291,8 +333,8 @@ def run_pipeline(spec: dict, status_callback=None):
         {
             "id": "cut-5-altitude",
             "type": "bar_chart",
-            "in_seconds": 38.0,
-            "out_seconds": 53.5,
+            "in_seconds": round(38.0 * dur_factor, 2),
+            "out_seconds": round(53.5 * dur_factor, 2),
             "title": c5.get("title", "Growth & Impact Metrics"),
             "chartData": c5.get("chartData") or default_c5_chart,
             "chartColors": ["#94A3B8", "#A78BFA", "#34D399"],
@@ -304,9 +346,9 @@ def run_pipeline(spec: dict, status_callback=None):
         {
             "id": "cut-6-outro",
             "type": "text_card",
-            "in_seconds": 53.5,
-            "out_seconds": 60.0,
-            "text": c6.get("title", f"The future of {topic} is unfolding now."),
+            "in_seconds": round(53.5 * dur_factor, 2),
+            "out_seconds": round(float(duration), 2),
+            "text": c6.get("title") or c6.get("text") or f"The future of {topic} is unfolding now.",
             "color": "#F8FAFC",
             "backgroundVideo": broll_paths[5] if len(broll_paths) > 5 else broll_paths[0],
             "backgroundOverlay": 0.48
@@ -320,6 +362,7 @@ def run_pipeline(spec: dict, status_callback=None):
         highlight_color = "#FFFFFF"
 
     remotion_props = {
+        "format": aspect_ratio,
         "theme": theme,
         "themeConfig": {
             "captionHighlightColor": highlight_color,
@@ -349,7 +392,8 @@ def run_pipeline(spec: dict, status_callback=None):
     output_mp4 = os.path.join(RENDERS_DIR, f"{slug}.mp4")
     update(88, f"Rendering Full HD MP4 in Remotion ({output_mp4})...")
     render_py = os.path.join(TOOLS_DIR, "render.py")
-    subprocess.run([PYTHON_EXEC, render_py, "--props", props_path, "--out", output_mp4, "--concurrency", "4"], check=True)
+    composition_name = "ExplainerShorts" if aspect_ratio == "9:16" else "Explainer"
+    subprocess.run([PYTHON_EXEC, render_py, "--props", props_path, "--out", output_mp4, "--composition", composition_name, "--concurrency", "4"], check=True)
 
     update(100, f"✨ Production Complete! Video ready at: {output_mp4}")
     return output_mp4
@@ -358,14 +402,29 @@ def main():
     parser = argparse.ArgumentParser(description="Run end-to-end explainer video production.")
     parser.add_argument("--spec", help="Path to spec JSON file")
     parser.add_argument("--topic", help="Topic string")
+    parser.add_argument("--format", default="16:9", choices=["16:9", "9:16"], help="Aspect ratio (16:9 or 9:16)")
+    parser.add_argument("--voice", default="en-US-AndrewMultilingualNeural", help="Voice name")
+    parser.add_argument("--theme", default="flat-motion-graphics", help="Theme palette")
+    parser.add_argument("--caption", default="kinetic-gold", help="Caption style")
+    parser.add_argument("--duration", type=int, default=60, help="Duration in seconds")
     args = parser.parse_args()
 
     spec = {}
     if args.spec and os.path.exists(args.spec):
         with open(args.spec, "r", encoding="utf-8") as f:
             spec = json.load(f)
-    elif args.topic:
+    if args.topic:
         spec["topic"] = args.topic
+    if args.format:
+        spec["format"] = args.format
+    if args.voice:
+        spec["voice"] = args.voice
+    if args.theme:
+        spec["theme"] = args.theme
+    if args.caption:
+        spec["captionStyle"] = args.caption
+    if args.duration:
+        spec["duration"] = args.duration
 
     run_pipeline(spec)
 

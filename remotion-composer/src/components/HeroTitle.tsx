@@ -21,6 +21,8 @@ type HeroTitleProps = {
    * scrim darkens the backdrop and cancels out the theme's dark text.
    */
   scrimBackground?: string;
+  fontSize?: number;
+  isVertical?: boolean;
 };
 
 const DEFAULT_SCRIM =
@@ -33,9 +35,15 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
   textColor = "#F8FAFC",
   subtitleColor = "#A78BFA",
   scrimBackground = DEFAULT_SCRIM,
+  fontSize: propFontSize,
+  isVertical: propIsVertical,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const isVertical = propIsVertical ?? (height > width);
+  const titleFontSize = propFontSize || (isVertical ? 52 : 72);
+  const subtitleFontSize = isVertical ? 24 : 28;
+  const underlineWidth = isVertical ? 260 : 400;
 
   // Staggered letter-by-letter spring
   const titleChars = title.split("");
@@ -46,13 +54,14 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
         justifyContent: "center",
         alignItems: "center",
         background: scrimBackground,
+        padding: isVertical ? "0 24px" : "0 40px",
       }}
     >
-      <div style={{ textAlign: "center", maxWidth: "85%" }}>
+      <div style={{ textAlign: "center", maxWidth: isVertical ? "92%" : "85%" }}>
         {/* Main title with per-character spring */}
         <div
           style={{
-            fontSize: 72,
+            fontSize: titleFontSize,
             fontWeight: 800,
             fontFamily: "Space Grotesk, Inter, system-ui, sans-serif",
             lineHeight: 1.2,
@@ -60,6 +69,7 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
             justifyContent: "center",
             flexWrap: "wrap",
             gap: 0,
+            wordBreak: "break-word",
           }}
         >
           {titleChars.map((char, i) => {
@@ -92,18 +102,19 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
         {subtitle && (
           <div
             style={{
-              marginTop: 20,
+              marginTop: isVertical ? 16 : 20,
               opacity: spring({
                 frame: frame - titleChars.length * 1.2 - 5,
                 fps,
                 config: { damping: 20 },
               }),
-              fontSize: 28,
+              fontSize: subtitleFontSize,
               fontWeight: 400,
               color: subtitleColor,
               fontFamily: "Space Grotesk, Inter, system-ui, sans-serif",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
+              lineHeight: 1.3,
             }}
           >
             {subtitle}
@@ -113,7 +124,7 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
         {/* Animated underline */}
         <div
           style={{
-            margin: "24px auto 0",
+            margin: `${isVertical ? 18 : 24}px auto 0`,
             height: 3,
             backgroundColor: accentColor,
             borderRadius: 2,
@@ -124,7 +135,7 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
                 config: { damping: 15, stiffness: 60 },
               }),
               [0, 1],
-              [0, 400]
+              [0, underlineWidth]
             ),
           }}
         />

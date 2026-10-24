@@ -36,7 +36,60 @@ type CaptionOverlayProps = {
   // without an explicit direction RTL words are laid out left-to-right and
   // the sentence reads backwards.
   direction?: "ltr" | "rtl" | "auto";
+  isVertical?: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Dynamic Auto-Emoji Lookup Table
+// ---------------------------------------------------------------------------
+const EMOJI_MAP: Record<string, string> = {
+  // money / dollar
+  money: "💸", dollar: "💸", dollars: "💸", cash: "💸", rich: "💸", profit: "💸", revenue: "💸", cost: "💸", price: "💸", finance: "💸", billion: "💸", million: "💸",
+  // world / earth / global
+  world: "🌍", earth: "🌍", global: "🌍", globe: "🌍", planet: "🌍", international: "🌍",
+  // nuclear / atom / physics
+  nuclear: "⚛️", atom: "⚛️", atomic: "⚛️", physics: "⚛️", quantum: "⚛️", radiation: "⚛️",
+  // bomb / war / blast
+  bomb: "💥", war: "💥", blast: "💥", explode: "💥", explosion: "💥", boom: "💥", destroy: "💥", destruction: "💥", impact: "💥",
+  // time / clock / history
+  time: "⏳", clock: "⏳", history: "⏳", historical: "⏳", timeline: "⏳", hour: "⏳", hours: "⏳", minute: "⏳", second: "⏳", century: "⏳", year: "⏳", years: "⏳",
+  // tech / robot / ai / compute
+  tech: "🤖", technology: "🤖", robot: "🤖", robots: "🤖", ai: "🤖", compute: "🤖", computer: "🤖", algorithm: "🤖", machine: "🤖", software: "🤖",
+  // fire / heat / burn
+  fire: "🔥", heat: "🔥", burn: "🔥", burning: "🔥", hot: "🔥", flame: "🔥", flames: "🔥",
+  // alert / warning / danger
+  alert: "🚨", warning: "🚨", emergency: "🚨", urgent: "🚨", alarm: "🚨", panic: "🚨",
+  // lock / secret / code
+  lock: "🔒", locked: "🔒", secret: "🔒", secrets: "🔒", code: "🔒", coding: "🔒", secure: "🔒", security: "🔒", encrypt: "🔒", encrypted: "🔒", privacy: "🔒",
+  // idea / light / future
+  idea: "💡", light: "💡", future: "💡", bulb: "💡", smart: "💡", solve: "💡", insight: "💡", think: "💡", genius: "💡", vision: "💡",
+  // coffee / cup / drink
+  coffee: "☕", cup: "☕", drink: "☕", cafe: "☕", espresso: "☕", tea: "☕",
+  // death / kill / danger
+  death: "☠️", dead: "☠️", die: "☠️", dying: "☠️", kill: "☠️", killer: "☠️", killed: "☠️", danger: "☠️", dangerous: "☠️", poison: "☠️", fatal: "☠️", toxic: "☠️",
+  // star / space / universe
+  star: "✨", stars: "✨", space: "✨", universe: "✨", cosmic: "✨", galaxy: "✨", magic: "✨", celestial: "✨", shine: "✨",
+  // speed / fast / rapid
+  speed: "⚡", fast: "⚡", rapid: "⚡", quick: "⚡", quickly: "⚡", lightning: "⚡", flash: "⚡", velocity: "⚡", power: "⚡", rush: "⚡",
+  // health / cure / bio
+  health: "🧬", cure: "🧬", bio: "🧬", biology: "🧬", dna: "🧬", gene: "🧬", genetics: "🧬", medicine: "🧬", medical: "🧬", doctor: "🧬", vaccine: "🧬", virus: "🧬",
+  // growth / up / surge
+  growth: "📈", grow: "📈", up: "📈", surge: "📈", scale: "📈", increase: "📈", rise: "📈", rising: "📈", stonks: "📈", market: "📈", chart: "📈", expand: "📈",
+};
+
+export function getWordEmoji(rawWord: string): string | null {
+  if (!rawWord) return null;
+  const clean = rawWord.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (EMOJI_MAP[clean]) {
+    return EMOJI_MAP[clean];
+  }
+  for (const [key, emoji] of Object.entries(EMOJI_MAP)) {
+    if (clean === key || (clean.length > 3 && clean.startsWith(key))) {
+      return emoji;
+    }
+  }
+  return null;
+}
 
 const RTL_CHAR = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
 const LTR_CHAR = /[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF]/;
@@ -88,7 +141,8 @@ const PageRenderer: React.FC<{
   fontFamily: string;
   wordSeparator: string;
   direction: "ltr" | "rtl";
-}> = ({ page, fontSize, color, highlightColor, backgroundColor, fontFamily, wordSeparator, direction }) => {
+  isVertical: boolean;
+}> = ({ page, fontSize, color, highlightColor, backgroundColor, fontFamily, wordSeparator, direction, isVertical }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -106,7 +160,7 @@ const PageRenderer: React.FC<{
       style={{
         justifyContent: "flex-end",
         alignItems: "center",
-        paddingBottom: 80,
+        paddingBottom: isVertical ? 220 : 80,
       }}
     >
       <div
@@ -116,40 +170,71 @@ const PageRenderer: React.FC<{
           opacity: entrance,
           transform: `translateY(${interpolate(entrance, [0, 1], [20, 0])}px)`,
           backgroundColor,
-          borderRadius: 12,
-          padding: "14px 28px",
-          maxWidth: "80%",
+          borderRadius: 14,
+          padding: isVertical ? "16px 24px" : "14px 28px",
+          maxWidth: isVertical ? "88%" : "80%",
           textAlign: "center",
         }}
       >
         <span
           style={{
             fontSize,
-            fontWeight: 700,
+            fontWeight: 800,
             fontFamily,
             lineHeight: 1.4,
             whiteSpace: "pre-wrap",
           }}
         >
           {page.words.map((w, i) => {
+            const wordStartFrame = Math.round(((w.startMs - page.startMs) / 1000) * fps);
             const isActive = w.startMs <= currentMs && w.endMs > currentMs;
             const isPast = w.endMs <= currentMs;
+            const emoji = getWordEmoji(w.word);
+
+            // Kinetic spring bounce for active word (Hormozi / MrBeast style)
+            const wordSpring = spring({
+              frame: frame - wordStartFrame,
+              fps,
+              config: { damping: 14, stiffness: 180 },
+            });
+            const activeScale = interpolate(wordSpring, [0, 1], [1.22, 1.05]);
+            const scale = isActive ? activeScale : 1;
+
             return (
               <Fragment key={`${w.startMs}-${i}`}>
                 <span
                   style={{
-                    // Keep each word unbroken so lines wrap only at word
-                    // boundaries. For space-delimited text this matches the
-                    // previous behavior; for CJK it prevents mid-word breaks.
+                    position: "relative",
                     display: "inline-block",
+                    margin: "0 5px",
+                    transform: `scale(${scale})`,
+                    transformOrigin: "center bottom",
                     whiteSpace: "nowrap",
                     color: isActive ? highlightColor : isPast ? color : `${color}99`,
                     transition: "none", // CSS transitions forbidden in Remotion
                     textShadow: isActive
-                      ? `0 0 20px ${highlightColor}66, 0 2px 4px rgba(0,0,0,0.5)`
+                      ? `0 0 24px ${highlightColor}88, 0 2px 6px rgba(0,0,0,0.6)`
                       : "0 2px 4px rgba(0,0,0,0.5)",
                   }}
                 >
+                  {/* Emoji Badge above or next to the active bouncing word */}
+                  {isActive && emoji && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        bottom: "100%",
+                        transform: `translateX(-50%) translateY(-6px) scale(${activeScale})`,
+                        fontSize: "0.85em",
+                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))",
+                        lineHeight: 1,
+                        pointerEvents: "none",
+                        zIndex: 10,
+                      }}
+                    >
+                      {emoji}
+                    </span>
+                  )}
                   {w.word}
                 </span>
                 {i < page.words.length - 1 ? wordSeparator : ""}
@@ -164,16 +249,21 @@ const PageRenderer: React.FC<{
 
 export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({
   words,
-  wordsPerPage = 6,
-  fontSize = 42,
+  wordsPerPage: propWordsPerPage,
+  fontSize: propFontSize,
   color = "#F8FAFC",
   highlightColor = "#22D3EE",
   backgroundColor = "rgba(15, 23, 42, 0.75)",
   fontFamily = "Space Grotesk, Inter, system-ui, sans-serif",
   wordSeparator = " ",
   direction = "auto",
+  isVertical: propIsVertical,
 }) => {
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const isVertical = propIsVertical ?? (height > width);
+  const wordsPerPage = propWordsPerPage ?? (isVertical ? 4 : 6);
+  const fontSize = propFontSize ?? (isVertical ? 52 : 42);
+
   const pages = buildPages(words, wordsPerPage);
   const resolvedDirection =
     direction === "auto" ? detectDirection(words) : direction;
@@ -199,6 +289,7 @@ export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({
               fontFamily={fontFamily}
               wordSeparator={wordSeparator}
               direction={resolvedDirection}
+              isVertical={isVertical}
             />
           </Sequence>
         );

@@ -552,7 +552,14 @@ const BackgroundVideoLayer: React.FC<{
   );
 };
 
-const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme }) => {
+const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig; isVertical?: boolean }> = ({
+  cut,
+  theme,
+  isVertical: propIsVertical,
+}) => {
+  const { width, height } = useVideoConfig();
+  const isVertical = propIsVertical ?? (height > width);
+
   // Wrap component with background video or image if specified
   const maybeWrapWithBg = (element: React.ReactElement) => {
     if (cut.backgroundVideo) {
@@ -590,12 +597,26 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
   // Explicit component types — use theme-derived defaults for colors
   if (cut.type === "text_card" && cut.text) {
     return maybeWrapWithBg(
-      <TextCard text={cut.text} fontSize={cut.fontSize} color={textColor} backgroundColor={bgColor} />
+      <TextCard
+        text={cut.text}
+        fontSize={cut.fontSize || (isVertical ? 48 : 64)}
+        color={textColor}
+        backgroundColor={bgColor}
+        isVertical={isVertical}
+      />
     );
   }
   if (cut.type === "stat_card" && cut.stat) {
     return maybeWrapWithBg(
-      <StatCard stat={cut.stat} subtitle={cut.subtitle} accentColor={accent} backgroundColor={bgColor} />
+      <StatCard
+        stat={cut.stat}
+        subtitle={cut.subtitle}
+        statFontSize={isVertical ? 88 : 128}
+        subtitleFontSize={isVertical ? 28 : 36}
+        accentColor={accent}
+        backgroundColor={bgColor}
+        isVertical={isVertical}
+      />
     );
   }
   if (cut.type === "callout" && cut.text) {
@@ -626,6 +647,8 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
         textColor={textColor}
         subtitleColor={theme.mutedTextColor}
         scrimBackground={heroScrim(theme)}
+        fontSize={cut.fontSize || (isVertical ? 52 : 72)}
+        isVertical={isVertical}
       />
     );
   }
@@ -768,17 +791,21 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
   }
 
   // No source, no type — render as text card with cut id as fallback
-  return <TextCard text={cut.text || cut.id} color={textColor} backgroundColor={bgColor} />;
+  return <TextCard text={cut.text || cut.id} color={textColor} backgroundColor={bgColor} isVertical={isVertical} />;
 };
 
 // ---------------------------------------------------------------------------
 // Overlay renderer
 // ---------------------------------------------------------------------------
 
-const OverlayRenderer: React.FC<{ overlay: Overlay; theme: ThemeConfig }> = ({
+const OverlayRenderer: React.FC<{ overlay: Overlay; theme: ThemeConfig; isVertical?: boolean }> = ({
   overlay,
   theme,
+  isVertical: propIsVertical,
 }) => {
+  const { width, height } = useVideoConfig();
+  const isVertical = propIsVertical ?? (height > width);
+
   if (overlay.type === "section_title") {
     return (
       <SectionTitle
@@ -810,6 +837,8 @@ const OverlayRenderer: React.FC<{ overlay: Overlay; theme: ThemeConfig }> = ({
         textColor={theme.textColor}
         subtitleColor={theme.mutedTextColor}
         scrimBackground={heroScrim(theme)}
+        fontSize={isVertical ? 52 : 72}
+        isVertical={isVertical}
       />
     );
   }
@@ -833,7 +862,8 @@ const OverlayRenderer: React.FC<{ overlay: Overlay; theme: ThemeConfig }> = ({
 
 export const Explainer: React.FC<ExplainerProps> = (props) => {
   const { cuts, overlays, captions, audio } = props;
-  const { fps, durationInFrames } = useVideoConfig();
+  const { width, height, fps, durationInFrames } = useVideoConfig();
+  const isVertical = height > width;
 
   // Resolve theme from props — playbook name, theme name, or custom themeConfig
   const theme = resolveTheme(props as Record<string, unknown>);
@@ -850,7 +880,7 @@ export const Explainer: React.FC<ExplainerProps> = (props) => {
 
         return (
           <Sequence key={cut.id} from={from} durationInFrames={duration}>
-            <SceneRenderer cut={cut} theme={theme} />
+            <SceneRenderer cut={cut} theme={theme} isVertical={isVertical} />
           </Sequence>
         );
       })}
@@ -864,29 +894,54 @@ export const Explainer: React.FC<ExplainerProps> = (props) => {
 
         return (
           <Sequence key={`overlay-${i}`} from={from} durationInFrames={duration}>
-            <OverlayRenderer overlay={overlay} theme={theme} />
+            <OverlayRenderer overlay={overlay} theme={theme} isVertical={isVertical} />
           </Sequence>
         );
       })}
 
-      {/* Layer 3: Captions (word-by-word highlight) */}
+      {/* Layer 3: Captions (word-by-word highlight with kinetic bounce & emojis) */}
       {captions && captions.length > 0 && (
         <CaptionOverlay
           words={captions}
-          wordsPerPage={6}
-          fontSize={42}
+          wordsPerPage={isVertical ? 4 : 6}
+          fontSize={isVertical ? 52 : 42}
           color={theme.textColor}
           highlightColor={theme.captionHighlightColor}
           backgroundColor={theme.captionBackgroundColor}
+          isVertical={isVertical}
         />
       )}
+
+      {/* Layer 4: Audio SFX Transitions (Whooshes on scene cuts) */}
+      {cuts.map((cut, idx) => {
+        if (cut.in_seconds <= 0) return null;
+        const from = Math.round(cut.in_seconds * fps);
+        return (
+          <Sequence key={`sfx-whoosh-${cut.id || idx}`} from={from} durationInFrames={15}>
+            <Audio src={resolveAsset("sfx/whoosh.mp3")} volume={0.35} />
+          </Sequence>
+        );
+      })}
+
+      {/* Layer 4: Audio SFX Pop (at stat_card and bar_chart entrances) */}
+      {cuts.map((cut, idx) => {
+        if (cut.type === "stat_card" || cut.type === "bar_chart") {
+          const from = Math.round(cut.in_seconds * fps);
+          return (
+            <Sequence key={`sfx-pop-${cut.id || idx}`} from={from} durationInFrames={12}>
+              <Audio src={resolveAsset("sfx/pop.mp3")} volume={0.28} />
+            </Sequence>
+          );
+        }
+        return null;
+      })}
 
       {/* Layer 4: Audio — narration */}
       {audio?.narration?.src && (
         <Audio src={resolveAsset(audio.narration.src)} volume={audio.narration.volume ?? 1} />
       )}
 
-      {/* Layer 4: Audio — music with offset, fade in/out, and optional loop */}
+      {/* Layer 4: Audio — music with offset, fade in/out, optional loop, and Dynamic Audio Ducking */}
       {audio?.music?.src && (
         <Audio
           src={resolveAsset(audio.music.src)}
@@ -894,24 +949,39 @@ export const Explainer: React.FC<ExplainerProps> = (props) => {
           loop={audio.music.loop ?? false}
           loopVolumeCurveBehavior="repeat"
           volume={(f) => {
-            const baseVol = audio.music!.volume ?? 0.1;
             const fadeInDur = (audio.music!.fadeInSeconds ?? 2) * fps;
             const fadeOutDur = (audio.music!.fadeOutSeconds ?? 3) * fps;
             const totalFrames = durationInFrames;
 
-            // Fade in
-            const fadeIn = interpolate(f, [0, fadeInDur], [0, baseVol], {
+            // Fade in envelope (0 -> 1)
+            const fadeIn = interpolate(f, [0, fadeInDur], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             });
-            // Fade out
+            // Fade out envelope (1 -> 0)
             const fadeOut = interpolate(
               f,
               [totalFrames - fadeOutDur, totalFrames],
-              [baseVol, 0],
+              [1, 0],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
             );
-            return Math.min(fadeIn, fadeOut);
+            const fadeMultiplier = Math.min(fadeIn, fadeOut);
+
+            // Dynamic Audio Ducking based on captions
+            let musicVol: number;
+            if (captions && captions.length > 0) {
+              const currentMs = (f / fps) * 1000;
+              // Check if speech is currently active (with 80ms smoothing padding)
+              const isSpeechActive = captions.some(
+                (w) => currentMs >= w.startMs - 80 && currentMs <= w.endMs + 80
+              );
+              // When speech is active: duck music volume to 0.11. Silence between sentences: swell to 0.24
+              musicVol = isSpeechActive ? 0.11 : 0.24;
+            } else {
+              musicVol = audio.music!.volume ?? 0.1;
+            }
+
+            return musicVol * fadeMultiplier;
           }}
         />
       )}

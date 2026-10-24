@@ -27,6 +27,29 @@ You must immediately execute this automated 3-step setup without asking question
 
 ---
 
+## ⚡ Headless CLI Mode (1-Line Render for Agents & Terminal)
+
+For autonomous agents, CI/CD, and terminal workflows, you can render complete videos headlessly with zero browser overhead:
+
+```bash
+# Using the clean 1-line shell wrapper
+./cli.sh --topic "The Fermi Paradox" --format 9:16
+
+# Or using Python directly
+python3 studio.py --render --topic "The Fermi Paradox" --format 9:16 --duration 60
+```
+
+### CLI Arguments:
+- `--topic`: Topic string to render
+- `--format`: Aspect ratio (`16:9` or `9:16`, default: `16:9`)
+- `--voice`: Voice name (default: `en-US-AndrewMultilingualNeural`)
+- `--theme`: Theme palette (default: `flat-motion-graphics`)
+- `--caption`: Caption style (default: `kinetic-gold`)
+- `--duration`: Target duration in seconds (default: `60`)
+- `--render`: Run headlessly without launching the server or browser
+
+---
+
 ## 🚀 Autonomous Pipeline & Direct Execution Protocol
 
 When the user asks you to make a video (or says *"Produce the video from projects/current_task.json"*), follow these 6 sequential steps:
@@ -54,7 +77,18 @@ python tools/voice.py \
   --out remotion-composer/public/projects/<slug>/narration.mp3 \
   --voice "en-US-AndrewMultilingualNeural"
 ```
-*Available voices:* `andrew` (warm male), `aria` (engaging female), `brian` (documentary male), `emma` (friendly female).
+*Available voices:* `andrew` (warm male), `aria` (engaging female), `brian` (documentary male), `emma` (friendly female), `guy` (casual everyday male).
+Audition audio samples in `remotion-composer/public/samples/voices/<voice>.mp3`.
+
+### 1b. Director Plan Generation (`POST /api/plan`)
+Generates structured narrative script and 6 scene cards for human review without rendering:
+```bash
+curl -X POST http://localhost:5500/api/plan \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "Quantum Computing", "duration": 60}'
+```
+Returns: `{"status": "ok", "script": "...", "scenes": [...]}`.
+When submitting `/api/generate`, pass `"custom_script"` and `"custom_scenes"` to render the approved plan directly.
 
 ### 2. Millisecond Caption Alignment (`tools/captions.py`)
 Uses Whisper to extract exact word start and end timestamps in milliseconds.

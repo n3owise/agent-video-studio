@@ -5,16 +5,20 @@ interface TextCardProps {
   fontSize?: number;
   color?: string;
   backgroundColor?: string;
+  isVertical?: boolean;
 }
 
 export const TextCard: React.FC<TextCardProps> = ({
   text,
-  fontSize = 64,
+  fontSize: propFontSize,
   color = "#FFFFFF",
   backgroundColor = "#1F2937",
+  isVertical: propIsVertical,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const isVertical = propIsVertical ?? (height > width);
+  const fontSize = propFontSize || (isVertical ? 48 : 64);
 
   const opacity = spring({ frame, fps, config: { damping: 20 } });
   const scale = spring({
@@ -31,6 +35,7 @@ export const TextCard: React.FC<TextCardProps> = ({
         justifyContent: "center",
         alignItems: "center",
         background: backgroundColor,
+        padding: isVertical ? "40px 32px" : "80px",
       }}
     >
       <div
@@ -42,8 +47,9 @@ export const TextCard: React.FC<TextCardProps> = ({
           fontFamily: "Inter, system-ui, sans-serif",
           fontWeight: 700,
           textAlign: "center",
-          maxWidth: "80%",
-          lineHeight: 1.3,
+          maxWidth: isVertical ? "92%" : "80%",
+          lineHeight: 1.35,
+          wordBreak: "break-word",
         }}
       >
         {text}

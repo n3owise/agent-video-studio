@@ -9,7 +9,7 @@ import os
 import subprocess
 import sys
 
-def render_video(props_path: str, output_path: str, concurrency: int = 4):
+def render_video(props_path: str, output_path: str, concurrency: int = 4, composition: str = "Explainer"):
     if not os.path.exists(props_path):
         print(f"Error: Props file not found at {props_path}", file=sys.stderr)
         sys.exit(1)
@@ -30,14 +30,14 @@ def render_video(props_path: str, output_path: str, concurrency: int = 4):
 
     cmd = [
         "npx", "remotion", "render",
-        "src/index.tsx", "Explainer",
+        "src/index.tsx", composition,
         abs_out,
         "--props", abs_props,
         "--codec", "h264",
         "--concurrency", str(concurrency)
     ]
 
-    print(f"[Render] Starting Remotion render...")
+    print(f"[Render] Starting Remotion render for composition '{composition}'...")
     print(f"[Render] Props: {abs_props}")
     print(f"[Render] Output: {abs_out}")
 
@@ -52,10 +52,11 @@ def main():
     parser = argparse.ArgumentParser(description="Render Remotion explainer video.")
     parser.add_argument("--props", "-p", required=True, help="Path to remotion_props.json")
     parser.add_argument("--out", "-o", required=True, help="Path to final .mp4 output")
+    parser.add_argument("--composition", "--comp", default="Explainer", help="Remotion composition name (default 'Explainer', e.g. 'ExplainerShorts')")
     parser.add_argument("--concurrency", "-c", type=int, default=4, help="Render concurrency (default 4)")
     args = parser.parse_args()
 
-    render_video(args.props, args.out, args.concurrency)
+    render_video(args.props, args.out, args.concurrency, composition=args.composition)
 
 if __name__ == "__main__":
     main()

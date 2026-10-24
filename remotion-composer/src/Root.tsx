@@ -120,14 +120,19 @@ export function resolveTheme(props: Record<string, unknown>): ThemeConfig {
 
 const calculateMetadata: CalculateMetadataFunction<ExplainerProps> = async ({
   props,
+  compositionId,
 }) => {
   const cuts = props.cuts || [];
+  const format = (props.format as string) || (props.aspectRatio as string);
+  const isVertical = compositionId === "ExplainerShorts" || format === "9:16";
+  const width = isVertical ? 1080 : 1920;
+  const height = isVertical ? 1920 : 1080;
   if (cuts.length === 0) {
-    return { durationInFrames: 30 * 60 };
+    return { durationInFrames: 30 * 60, width, height };
   }
   const lastEnd = Math.max(...cuts.map((c) => c.out_seconds || 0));
   // Add 1 second padding for final fade
-  return { durationInFrames: Math.ceil((lastEnd + 1) * 30) };
+  return { durationInFrames: Math.ceil((lastEnd + 1) * 30), width, height };
 };
 
 export const Root: React.FC = () => {
@@ -140,6 +145,21 @@ export const Root: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+        defaultProps={{
+          cuts: [],
+          overlays: [],
+          captions: [],
+          audio: {},
+        }}
+        calculateMetadata={calculateMetadata}
+      />
+      <Composition
+        id="ExplainerShorts"
+        component={Explainer}
+        durationInFrames={30 * 60}
+        fps={30}
+        width={1080}
+        height={1920}
         defaultProps={{
           cuts: [],
           overlays: [],

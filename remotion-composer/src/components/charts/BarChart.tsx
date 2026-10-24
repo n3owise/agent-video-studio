@@ -41,25 +41,33 @@ export const BarChart: React.FC<BarChartProps> = ({
   barGap = 12,
 }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
+  const isVertical = height > width;
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
 
-  // Chart layout constants (within 1920x1080 canvas)
-  const chartLeft = 140;
-  const chartRight = 1780;
-  const chartTop = title ? 160 : 80;
-  const chartBottom = 920;
+  // Chart layout constants
+  // In vertical 1080x1920: chart coordinates are in 1080x1920
+  // In horizontal 1920x1080: chart coordinates are in 1920x1080
+  const svgWidth = isVertical ? 1080 : 1920;
+  const svgHeight = isVertical ? 1920 : 1080;
+
+  const chartLeft = isVertical ? 100 : 140;
+  const chartRight = isVertical ? 980 : 1780;
+  const chartTop = isVertical ? (title ? 460 : 360) : (title ? 160 : 80);
+  const chartBottom = isVertical ? 1420 : 920;
   const chartWidth = chartRight - chartLeft;
   const chartHeight = chartBottom - chartTop;
 
   const barCount = data.length;
-  const totalGap = barGap * (barCount + 1);
+  const effectiveBarGap = isVertical ? Math.min(barGap, 8) : barGap;
+  const totalGap = effectiveBarGap * (barCount + 1);
+  const maxBarWidth = isVertical ? 90 : 120;
   const barWidth = Math.min(
     (chartWidth - totalGap) / barCount,
-    120
+    maxBarWidth
   );
-  const actualTotalWidth = barCount * barWidth + (barCount + 1) * barGap;
+  const actualTotalWidth = barCount * barWidth + (barCount + 1) * effectiveBarGap;
   const offsetX = chartLeft + (chartWidth - actualTotalWidth) / 2;
 
   // Grid lines
@@ -76,23 +84,23 @@ export const BarChart: React.FC<BarChartProps> = ({
         background: backgroundColor,
         justifyContent: "flex-start",
         alignItems: "center",
-        padding: 40,
+        padding: isVertical ? 20 : 40,
       }}
     >
       <svg
-        viewBox="0 0 1920 1080"
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         style={{ width: "100%", height: "100%" }}
       >
         {/* Title */}
         {title && (
           <text
-            x={960}
-            y={80}
+            x={svgWidth / 2}
+            y={isVertical ? 360 : 80}
             textAnchor="middle"
             fill={textColor}
             fontFamily={fontFamily}
             fontWeight={700}
-            fontSize={48}
+            fontSize={isVertical ? 44 : 48}
             opacity={spring({ frame, fps, config: { damping: 20 } })}
           >
             {title}
@@ -126,7 +134,7 @@ export const BarChart: React.FC<BarChartProps> = ({
                   fill={textColor}
                   fontFamily={fontFamily}
                   fontWeight={400}
-                  fontSize={20}
+                  fontSize={isVertical ? 18 : 20}
                   opacity={gridOpacity}
                 >
                   {formatNumber(line.value)}
@@ -162,7 +170,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         {/* Bars */}
         {data.map((datum, i) => {
           const color = colors[i % colors.length];
-          const barX = offsetX + barGap + i * (barWidth + barGap);
+          const barX = offsetX + effectiveBarGap + i * (barWidth + effectiveBarGap);
           const barHeightFull = (datum.value / maxValue) * chartHeight;
           const staggerDelay = i * 4;
 
@@ -243,7 +251,7 @@ export const BarChart: React.FC<BarChartProps> = ({
                   fill={textColor}
                   fontFamily={fontFamily}
                   fontWeight={600}
-                  fontSize={22}
+                  fontSize={isVertical ? 20 : 22}
                   opacity={interpolate(
                     barProgress,
                     [0.7, 1],
@@ -258,12 +266,12 @@ export const BarChart: React.FC<BarChartProps> = ({
               {/* Label */}
               <text
                 x={barX + barWidth / 2}
-                y={chartBottom + 40}
+                y={chartBottom + (isVertical ? 35 : 40)}
                 textAnchor="middle"
                 fill={textColor}
                 fontFamily={fontFamily}
                 fontWeight={500}
-                fontSize={20}
+                fontSize={isVertical ? 18 : 20}
                 opacity={barOpacity}
               >
                 {datum.label}
