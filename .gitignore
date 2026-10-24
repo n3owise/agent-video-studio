@@ -1,0 +1,19 @@
+# Environment & packages
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# OS & IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Remotion & Video caches
+remotion-composer/.remotion/
+*.tmp.mp4
+*.raw.mp4
+
+# Render outputs (optional to keep or gitignore)
+renders/*.mp4
+!renders/.gitkeep

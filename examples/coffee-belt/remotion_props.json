@@ -1,0 +1,998 @@
+{
+  "theme": "flat-motion-graphics",
+  "themeConfig": {
+    "primaryColor": "#D97706",
+    "accentColor": "#F59E0B",
+    "backgroundColor": "#120E0B",
+    "surfaceColor": "#1C1612",
+    "textColor": "#F8FAFC",
+    "mutedTextColor": "#A8A29E",
+    "headingFont": "Space Grotesk",
+    "bodyFont": "Space Grotesk",
+    "monoFont": "JetBrains Mono",
+    "chartColors": [
+      "#F59E0B",
+      "#38BDF8",
+      "#34D399",
+      "#F87171",
+      "#A78BFA",
+      "#06B6D4"
+    ],
+    "springConfig": {
+      "damping": 18,
+      "stiffness": 100,
+      "mass": 1
+    },
+    "transitionDuration": 0.4,
+    "captionHighlightColor": "#FBBF24",
+    "captionBackgroundColor": "rgba(24, 20, 16, 0.85)"
+  },
+  "cuts": [
+    {
+      "id": "cut-1-hero",
+      "source": "",
+      "type": "hero_title",
+      "in_seconds": 0.0,
+      "out_seconds": 8.2,
+      "text": "Why Your Garden Can't Grow Coffee",
+      "subtitle": "After all, it's just a fruit tree... right?",
+      "accentColor": "#F59E0B",
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_01.mp4",
+      "backgroundOverlay": 0.48
+    },
+    {
+      "id": "cut-2-frost",
+      "source": "",
+      "type": "stat_card",
+      "in_seconds": 8.2,
+      "out_seconds": 17.5,
+      "stat": "0\u00b0C / 32\u00b0F",
+      "subtitle": "Biological Kryptonite: Frost kills coffee trees in hours",
+      "accentColor": "#38BDF8",
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_02.mp4",
+      "backgroundOverlay": 0.48
+    },
+    {
+      "id": "cut-3-heat",
+      "source": "",
+      "type": "bar_chart",
+      "in_seconds": 17.5,
+      "out_seconds": 28.0,
+      "title": "Temperature Limits for Coffee Trees (\u00b0C)",
+      "chartData": [
+        {
+          "label": "Freezing Point",
+          "value": 0
+        },
+        {
+          "label": "Ideal Range",
+          "value": 24
+        },
+        {
+          "label": "Desert Heat",
+          "value": 40
+        }
+      ],
+      "chartColors": [
+        "#38BDF8",
+        "#34D399",
+        "#F87171"
+      ],
+      "showGrid": true,
+      "showValues": true,
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_03.mp4",
+      "backgroundOverlay": 0.52
+    },
+    {
+      "id": "cut-4-belt",
+      "source": "",
+      "type": "stat_card",
+      "in_seconds": 28.0,
+      "out_seconds": 38.0,
+      "stat": "25\u00b0N \u2014 25\u00b0S",
+      "subtitle": "The Bean Belt: Earth's only equatorial coffee sanctuary",
+      "accentColor": "#FBBF24",
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_04.mp4",
+      "backgroundOverlay": 0.48
+    },
+    {
+      "id": "cut-5-altitude",
+      "source": "",
+      "type": "bar_chart",
+      "in_seconds": 38.0,
+      "out_seconds": 53.5,
+      "title": "Altitude Demanded by Arabica (Meters)",
+      "chartData": [
+        {
+          "label": "Sea Level",
+          "value": 0
+        },
+        {
+          "label": "Robusta",
+          "value": 600
+        },
+        {
+          "label": "Arabica Sweetspot",
+          "value": 1800
+        }
+      ],
+      "chartColors": [
+        "#94A3B8",
+        "#A78BFA",
+        "#34D399"
+      ],
+      "showGrid": true,
+      "showValues": true,
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_05.mp4",
+      "backgroundOverlay": 0.5
+    },
+    {
+      "id": "cut-6-outro",
+      "source": "",
+      "type": "text_card",
+      "in_seconds": 53.5,
+      "out_seconds": 60.0,
+      "text": "Every morning cup survived Earth's narrowest climate tightrope.",
+      "color": "#F8FAFC",
+      "backgroundVideo": "projects/coffee-belt-explainer/assets/video/scene_06.mp4",
+      "backgroundOverlay": 0.48
+    }
+  ],
+  "overlays": [
+    {
+      "type": "section_title",
+      "in_seconds": 8.5,
+      "out_seconds": 13.0,
+      "text": "Zero Frost Tolerance",
+      "subtitle": "A single cold night wipes out farms",
+      "accentColor": "#38BDF8"
+    },
+    {
+      "type": "section_title",
+      "in_seconds": 28.5,
+      "out_seconds": 34.0,
+      "text": "The Bean Belt",
+      "subtitle": "The Equatorial Sanctuary",
+      "accentColor": "#FBBF24"
+    },
+    {
+      "type": "stat_reveal",
+      "in_seconds": 39.0,
+      "out_seconds": 46.0,
+      "text": "1,000m - 2,000m",
+      "subtitle": "Mountain cool concentrates dense sugars",
+      "accentColor": "#34D399",
+      "position": "bottom-right"
+    }
+  ],
+  "captions": [
+    {
+      "word": "Why",
+      "startMs": 0,
+      "endMs": 320,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "can",
+      "startMs": 320,
+      "endMs": 480,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "you",
+      "startMs": 480,
+      "endMs": 600,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "plant",
+      "startMs": 600,
+      "endMs": 720,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "a",
+      "startMs": 720,
+      "endMs": 1020,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "coffee",
+      "startMs": 1020,
+      "endMs": 1120,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "tree",
+      "startMs": 1120,
+      "endMs": 1420,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "in",
+      "startMs": 1420,
+      "endMs": 1540,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "your",
+      "startMs": 1540,
+      "endMs": 1660,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "backyard",
+      "startMs": 1660,
+      "endMs": 2000,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "in",
+      "startMs": 2000,
+      "endMs": 2240,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "New",
+      "startMs": 2240,
+      "endMs": 2440,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "York,",
+      "startMs": 2440,
+      "endMs": 2800,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "London,",
+      "startMs": 3140,
+      "endMs": 3340,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "or",
+      "startMs": 3780,
+      "endMs": 3960,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "Paris?",
+      "startMs": 3960,
+      "endMs": 4380,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "After",
+      "startMs": 5020,
+      "endMs": 5160,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "all,",
+      "startMs": 5160,
+      "endMs": 5680,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "it's",
+      "startMs": 5780,
+      "endMs": 5900,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "just",
+      "startMs": 5900,
+      "endMs": 6100,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "a",
+      "startMs": 6100,
+      "endMs": 6160,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "fruit",
+      "startMs": 6160,
+      "endMs": 6380,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "tree,",
+      "startMs": 6380,
+      "endMs": 6740,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "right?",
+      "startMs": 6860,
+      "endMs": 7400,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Wrong.",
+      "startMs": 7660,
+      "endMs": 7980,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Coffee",
+      "startMs": 8620,
+      "endMs": 8640,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "has",
+      "startMs": 8640,
+      "endMs": 8920,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "a",
+      "startMs": 8920,
+      "endMs": 9140,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "fatal",
+      "startMs": 9140,
+      "endMs": 9380,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "biological",
+      "startMs": 9380,
+      "endMs": 9940,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "flaw.",
+      "startMs": 9940,
+      "endMs": 10700,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Zero",
+      "startMs": 11460,
+      "endMs": 11520,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "tolerance",
+      "startMs": 11520,
+      "endMs": 11900,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "for",
+      "startMs": 11900,
+      "endMs": 12200,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "cold.",
+      "startMs": 12200,
+      "endMs": 12480,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "A",
+      "startMs": 13020,
+      "endMs": 13100,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "single",
+      "startMs": 13100,
+      "endMs": 13400,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "night",
+      "startMs": 13400,
+      "endMs": 13780,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "below,",
+      "startMs": 13780,
+      "endMs": 14600,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "freezing",
+      "startMs": 14740,
+      "endMs": 14960,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "will",
+      "startMs": 14960,
+      "endMs": 15360,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "destroy",
+      "startMs": 15360,
+      "endMs": 15760,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "an",
+      "startMs": 15760,
+      "endMs": 16100,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "entire",
+      "startMs": 16100,
+      "endMs": 16480,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "plantation.",
+      "startMs": 16480,
+      "endMs": 17060,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "So",
+      "startMs": 17560,
+      "endMs": 17800,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "why",
+      "startMs": 17800,
+      "endMs": 17920,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "not",
+      "startMs": 17920,
+      "endMs": 18160,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "plant",
+      "startMs": 18160,
+      "endMs": 18400,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "it",
+      "startMs": 18400,
+      "endMs": 18520,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "in",
+      "startMs": 18520,
+      "endMs": 18600,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "the",
+      "startMs": 18600,
+      "endMs": 18720,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "desert?",
+      "startMs": 18720,
+      "endMs": 18960,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Because",
+      "startMs": 19420,
+      "endMs": 19880,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "coffee",
+      "startMs": 19880,
+      "endMs": 20340,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "also",
+      "startMs": 20340,
+      "endMs": 20760,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "hates",
+      "startMs": 20760,
+      "endMs": 20980,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "intense",
+      "startMs": 20980,
+      "endMs": 21460,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "heat.",
+      "startMs": 21460,
+      "endMs": 21920,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Temperatures",
+      "startMs": 22160,
+      "endMs": 22700,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "above",
+      "startMs": 22700,
+      "endMs": 23260,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "24",
+      "startMs": 23260,
+      "endMs": 23780,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "degrees",
+      "startMs": 23780,
+      "endMs": 24420,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "Celsius",
+      "startMs": 24420,
+      "endMs": 25020,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "scorch",
+      "startMs": 25020,
+      "endMs": 25540,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "the",
+      "startMs": 25540,
+      "endMs": 25820,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "leaves",
+      "startMs": 25820,
+      "endMs": 26200,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "and",
+      "startMs": 26200,
+      "endMs": 26900,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "stun",
+      "startMs": 26900,
+      "endMs": 27140,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "being",
+      "startMs": 27140,
+      "endMs": 27440,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "growth.",
+      "startMs": 27440,
+      "endMs": 27820,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "This",
+      "startMs": 28480,
+      "endMs": 28500,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "leaves",
+      "startMs": 28500,
+      "endMs": 28820,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "only",
+      "startMs": 28820,
+      "endMs": 29480,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "one",
+      "startMs": 29480,
+      "endMs": 29840,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "narrow",
+      "startMs": 29840,
+      "endMs": 30360,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "equatorial",
+      "startMs": 30360,
+      "endMs": 31140,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "sanctuary.",
+      "startMs": 31140,
+      "endMs": 31660,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "The",
+      "startMs": 32300,
+      "endMs": 32400,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "bean",
+      "startMs": 32400,
+      "endMs": 32680,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "belt",
+      "startMs": 32680,
+      "endMs": 33060,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "strictly",
+      "startMs": 33060,
+      "endMs": 33940,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "bounded",
+      "startMs": 33940,
+      "endMs": 34320,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "between",
+      "startMs": 34320,
+      "endMs": 34720,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "25",
+      "startMs": 34720,
+      "endMs": 35300,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "degrees",
+      "startMs": 35300,
+      "endMs": 35720,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "north",
+      "startMs": 35720,
+      "endMs": 36360,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "and",
+      "startMs": 36360,
+      "endMs": 36640,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "25",
+      "startMs": 36640,
+      "endMs": 37060,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "degrees",
+      "startMs": 37060,
+      "endMs": 37460,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "south.",
+      "startMs": 37460,
+      "endMs": 37960,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "And",
+      "startMs": 38340,
+      "endMs": 38460,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "inside",
+      "startMs": 38460,
+      "endMs": 38800,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "that",
+      "startMs": 38800,
+      "endMs": 39220,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "belt,",
+      "startMs": 39220,
+      "endMs": 39680,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "Arabicah",
+      "startMs": 39860,
+      "endMs": 40600,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "demands",
+      "startMs": 40600,
+      "endMs": 41080,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "mountain",
+      "startMs": 41080,
+      "endMs": 41580,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "highlands",
+      "startMs": 41580,
+      "endMs": 42080,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "between",
+      "startMs": 42080,
+      "endMs": 42620,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "1",
+      "startMs": 42620,
+      "endMs": 43200,
+      "pageBreakAfter": false
+    },
+    {
+      "word": ",000",
+      "startMs": 43200,
+      "endMs": 43660,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "and",
+      "startMs": 43660,
+      "endMs": 43820,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "2",
+      "startMs": 43820,
+      "endMs": 44100,
+      "pageBreakAfter": false
+    },
+    {
+      "word": ",000",
+      "startMs": 44100,
+      "endMs": 44240,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "meters",
+      "startMs": 44240,
+      "endMs": 44520,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "high.",
+      "startMs": 44520,
+      "endMs": 45020,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Cool",
+      "startMs": 45360,
+      "endMs": 45680,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "mountain",
+      "startMs": 45680,
+      "endMs": 46080,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "air",
+      "startMs": 46080,
+      "endMs": 46760,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "slows",
+      "startMs": 46760,
+      "endMs": 47260,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "being",
+      "startMs": 47260,
+      "endMs": 47600,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "maturation,",
+      "startMs": 47600,
+      "endMs": 48460,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "packing",
+      "startMs": 49020,
+      "endMs": 49220,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "in",
+      "startMs": 49220,
+      "endMs": 49620,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "dense",
+      "startMs": 49620,
+      "endMs": 49900,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "sugars,",
+      "startMs": 49900,
+      "endMs": 50300,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "while",
+      "startMs": 50800,
+      "endMs": 50960,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "volcanic",
+      "startMs": 50960,
+      "endMs": 51420,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "soil",
+      "startMs": 51420,
+      "endMs": 51920,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "protects",
+      "startMs": 51920,
+      "endMs": 52420,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "fragile",
+      "startMs": 52420,
+      "endMs": 52880,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "roots.",
+      "startMs": 52880,
+      "endMs": 53320,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Next",
+      "startMs": 53320,
+      "endMs": 53940,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "time",
+      "startMs": 53940,
+      "endMs": 54100,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "you",
+      "startMs": 54100,
+      "endMs": 54260,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "sip",
+      "startMs": 54260,
+      "endMs": 54380,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "your",
+      "startMs": 54380,
+      "endMs": 54640,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "brew.",
+      "startMs": 54640,
+      "endMs": 55100,
+      "pageBreakAfter": true
+    },
+    {
+      "word": "Remember,",
+      "startMs": 55500,
+      "endMs": 55900,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "it",
+      "startMs": 56540,
+      "endMs": 56660,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "survived",
+      "startMs": 56660,
+      "endMs": 57260,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "Earth's",
+      "startMs": 57260,
+      "endMs": 58280,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "narrowest",
+      "startMs": 58280,
+      "endMs": 58640,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "climate",
+      "startMs": 58640,
+      "endMs": 58960,
+      "pageBreakAfter": false
+    },
+    {
+      "word": "titrope.",
+      "startMs": 58960,
+      "endMs": 59780,
+      "pageBreakAfter": true
+    }
+  ],
+  "audio": {
+    "narration": {
+      "src": "projects/coffee-belt-explainer/narration_natural.mp3",
+      "volume": 1.0
+    },
+    "music": {
+      "src": "projects/coffee-belt-explainer/bgm.mp3",
+      "volume": 0.18,
+      "fadeInSeconds": 1.5,
+      "fadeOutSeconds": 3.0
+    }
+  }
+}
