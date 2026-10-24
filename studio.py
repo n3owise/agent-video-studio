@@ -1142,7 +1142,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
               <span style="font-weight:700; color:#ffffff;">${v.name}</span>
               <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; padding:4px 10px; border-radius:999px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.2); color:#38bdf8;">1080P FULL HD • 30 FPS</span>
             </div>
-            <video controls autoplay muted src="${v.url}"></video>
+            <video controls preload="metadata" playsinline src="${v.url}"></video>
             <div style="display:flex; justify-content:flex-end; margin-top:14px;">
               <a href="${v.url}" download style="color:#fbbf24; text-decoration:none; font-size:0.85rem; font-weight:700;">⬇️ Download Master MP4</a>
             </div>
@@ -1222,14 +1222,62 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path.startswith("/files/"):
             rel_path = parsed.path[len("/files/"):]
             full_path = os.path.join(REPO_ROOT, rel_path)
-            if os.path.exists(full_path) and os.path.isfile(full_path):
+            if not (os.path.exists(full_path) and os.path.isfile(full_path)):
+                self.send_error(404, "File Not Found")
+                return
+
+            file_size = os.path.getsize(full_path)
+            content_type = "video/mp4" if full_path.endswith(".mp4") else "application/octet-stream"
+
+            range_header = self.headers.get("Range")
+            if range_header and range_header.startswith("bytes="):
+                try:
+                    bytes_range = range_header.split("=")[1].strip()
+                    parts = bytes_range.split("-")
+                    start = int(parts[0]) if parts[0] else 0
+                    end = int(parts[1]) if parts[1] else file_size - 1
+                except Exception:
+                    start, end = 0, file_size - 1
+
+                if start >= file_size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{file_size}")
+                    self.end_headers()
+                    return
+
+                end = min(end, file_size - 1)
+                chunk_len = end - start + 1
+
+                self.send_response(206)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+                self.send_header("Content-Length", str(chunk_len))
+                self.end_headers()
+
+                with open(full_path, "rb") as f:
+                    f.seek(start)
+                    remaining = chunk_len
+                    buffer_size = 64 * 1024
+                    while remaining > 0:
+                        to_read = min(remaining, buffer_size)
+                        buf = f.read(to_read)
+                        if not buf:
+                            break
+                        try:
+                            self.wfile.write(buf)
+                        except (BrokenPipeError, ConnectionResetError):
+                            break
+                        remaining -= len(buf)
+                return
+            else:
                 self.send_response(200)
-                if full_path.endswith(".mp4"):
-                    self.send_header("Content-Type", "video/mp4")
-                self.send_header("Content-Length", str(os.path.getsize(full_path)))
+                self.send_header("Content-Type", content_type)
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Content-Length", str(file_size))
                 self.end_headers()
                 with open(full_path, "rb") as f:
-                    self.wfile.write(f.read())
+                    shutil.copyfileobj(f, self.wfile)
                 return
 
         super().do_GET()
@@ -1272,6 +1320,10 @@ class StudioHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
 def run_server():
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     os.makedirs(RENDERS_DIR, exist_ok=True)
@@ -1287,9 +1339,8 @@ def run_server():
                 pass
         threading.Thread(target=open_browser, daemon=True).start()
 
-    socketserver.TCPServer.allow_reuse_address = True
     server_address = ("", PORT)
-    with socketserver.TCPServer(server_address, StudioHandler) as httpd:
+    with ThreadingHTTPServer(server_address, StudioHandler) as httpd:
         print(f"✨ Agent Video Studio UI running at: http://localhost:{PORT}")
         print("Press Ctrl+C to stop.")
         try:
