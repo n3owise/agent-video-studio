@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 studio.py - Agent Video Studio Control Center
-A minimalist, high-end, Awwwards-inspired control panel for directing explainer videos.
+A minimalist, high-end, Awwwards-inspired control panel with live visual caption & theme simulator.
 Runs locally at http://localhost:5500
 """
 
@@ -11,8 +11,6 @@ import os
 import socketserver
 import urllib.parse
 import glob
-import subprocess
-import sys
 
 PORT = 5500
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -27,13 +25,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <title>Agent Video Studio — The Film Director for Coding Agents</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #07080c;
       --card-bg: rgba(13, 16, 26, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
-      --card-hover: rgba(255, 255, 255, 0.14);
+      --card-hover: rgba(255, 255, 255, 0.16);
       --accent: #f59e0b;
       --accent-light: #fbbf24;
       --accent-glow: rgba(245, 158, 11, 0.25);
@@ -66,8 +64,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       top: -200px;
       left: 50%;
       transform: translateX(-50%);
-      width: 900px;
-      height: 500px;
+      width: 1000px;
+      height: 550px;
       background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.12) 0%, rgba(56, 189, 248, 0.05) 45%, transparent 70%);
       pointer-events: none;
       z-index: 0;
@@ -75,7 +73,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     .container {
       width: 100%;
-      max-width: 900px;
+      max-width: 960px;
       position: relative;
       z-index: 1;
     }
@@ -86,7 +84,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       flex-direction: column;
       align-items: center;
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 36px;
     }
 
     .top-badge {
@@ -140,11 +138,142 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--text-muted);
       font-size: 1.05rem;
       font-weight: 400;
-      max-width: 580px;
+      max-width: 620px;
       line-height: 1.6;
     }
 
-    /* Luxury Glass Cards */
+    /* ==========================================================================
+       LIVE VISUAL CANVAS SIMULATOR (Real-Time WYSIWYG)
+       ========================================================================== */
+    .simulator-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .simulator-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .sim-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sim-screen {
+      width: 100%;
+      height: 240px;
+      border-radius: 14px;
+      background: #120e0b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      transition: background 0.4s ease;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+    }
+
+    /* Ambient animated video placeholder in the simulator */
+    .sim-screen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 30%, rgba(255,255,255,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .sim-top-badge {
+      align-self: flex-start;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      backdrop-filter: blur(4px);
+    }
+
+    .sim-center-content {
+      align-self: center;
+      text-align: center;
+      z-index: 2;
+    }
+
+    .sim-metric-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      transition: color 0.3s ease;
+    }
+
+    .sim-metric-sub {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .sim-caption-bar {
+      align-self: center;
+      z-index: 2;
+      display: flex;
+      gap: 6px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: -0.01em;
+    }
+
+    .sim-word {
+      padding: 3px 6px;
+      border-radius: 4px;
+      color: #ffffff;
+      transition: all 0.3s ease;
+    }
+
+    /* Caption Style Variations on Live Simulator */
+    .sim-caption-bar.style-kinetic-gold .active-word {
+      background: #fbbf24;
+      color: #0b0f19;
+      transform: scale(1.12);
+      box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+    }
+
+    .sim-caption-bar.style-cyber-cyan .active-word {
+      background: #22d3ee;
+      color: #041824;
+      transform: scale(1.12);
+      box-shadow: 0 0 16px rgba(34, 211, 238, 0.8);
+    }
+
+    .sim-caption-bar.style-clean-white .active-word {
+      background: #ffffff;
+      color: #0b0f19;
+      transform: scale(1.08);
+      box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
+    }
+
+    /* ==========================================================================
+       MAIN FORM & INTERACTIVE VISUAL CARDS
+       ========================================================================== */
     .glass-card {
       background: var(--card-bg);
       backdrop-filter: blur(20px);
@@ -154,11 +283,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding: 32px;
       margin-bottom: 24px;
       box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      transition: border-color 0.3s;
     }
 
     .field-group {
-      margin-bottom: 26px;
+      margin-bottom: 28px;
     }
 
     .field-group:last-child {
@@ -169,7 +297,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     label {
@@ -198,15 +326,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-weight: 500;
       outline: none;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
 
     input[type="text"]:focus, textarea:focus {
       border-color: rgba(245, 158, 11, 0.6);
-      box-shadow: 0 0 0 4px var(--accent-glow), inset 0 2px 4px rgba(0,0,0,0.2);
+      box-shadow: 0 0 0 4px var(--accent-glow);
     }
 
-    /* Minimal Pills */
     .pills {
       display: flex;
       flex-wrap: wrap;
@@ -224,7 +350,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--text-muted);
       cursor: pointer;
       transition: all 0.2s ease;
-      user-select: none;
     }
 
     .pill:hover {
@@ -234,7 +359,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transform: translateY(-1px);
     }
 
-    /* Interactive Visual Cards for Aspect Ratio */
+    /* Aspect Grid */
     .aspect-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -250,14 +375,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border: 1px solid var(--card-border);
       border-radius: 14px;
       cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
-      user-select: none;
-    }
-
-    .aspect-card:hover {
-      border-color: var(--card-hover);
-      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.25s;
     }
 
     .aspect-card.active {
@@ -276,7 +394,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       color: var(--text-muted);
-      transition: all 0.2s;
     }
 
     .aspect-card.active .aspect-icon-box {
@@ -285,19 +402,139 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--accent-light);
     }
 
-    .aspect-info h4 {
-      font-size: 0.95rem;
+    /* ==========================================================================
+       VISUAL CAPTION STYLE PREVIEW CARDS
+       ========================================================================== */
+    .caption-style-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .style-card {
+      background: var(--surface-inner);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .style-card:hover {
+      border-color: var(--card-hover);
+    }
+
+    .style-card.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.05);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 20px -8px var(--accent-glow);
+    }
+
+    .style-preview-box {
+      background: #030408;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px 10px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.82rem;
       font-weight: 700;
+      gap: 4px;
+    }
+
+    .style-card-title {
+      font-weight: 700;
+      font-size: 0.9rem;
       color: var(--text);
       margin-bottom: 2px;
     }
 
-    .aspect-info p {
-      font-size: 0.78rem;
+    .style-card-desc {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    /* ==========================================================================
+       VISUAL COLOR THEME PREVIEW CARDS
+       ========================================================================== */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .theme-card {
+      background: var(--surface-inner);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .theme-card:hover {
+      border-color: var(--card-hover);
+    }
+
+    .theme-card.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.05);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 20px -8px var(--accent-glow);
+    }
+
+    .theme-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .theme-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 5px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .theme-chart-preview {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 32px;
+      padding: 4px 8px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .theme-bar {
+      border-radius: 3px;
+      flex: 1;
+    }
+
+    .theme-desc {
+      font-size: 0.76rem;
       color: var(--text-dim);
     }
 
-    /* Segmented Toggle for Duration */
+    /* Duration segmented */
     .segmented-control {
       display: flex;
       padding: 4px;
@@ -318,7 +555,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
-      user-select: none;
     }
 
     .segment-btn.active {
@@ -327,7 +563,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    /* Dropdowns */
+    /* Dropdown wrapper */
     .custom-select-wrapper {
       position: relative;
     }
@@ -348,11 +584,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transition: all 0.2s;
     }
 
-    select:focus {
-      border-color: rgba(245, 158, 11, 0.6);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
     .select-chevron {
       position: absolute;
       right: 16px;
@@ -368,7 +599,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       gap: 16px;
     }
 
-    /* Awwwards Button */
+    /* Button */
     .submit-btn {
       width: 100%;
       padding: 18px 32px;
@@ -382,11 +613,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       letter-spacing: -0.01em;
       cursor: pointer;
       box-shadow: 0 10px 30px -5px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      transition: all 0.25s;
       margin-top: 10px;
     }
 
@@ -396,11 +623,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
     }
 
-    .submit-btn:active {
-      transform: translateY(0);
-    }
-
-    /* Result Agent Terminal Card */
+    /* Prompt output */
     .prompt-card {
       display: none;
       margin-top: 24px;
@@ -408,7 +631,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border: 1px solid rgba(245, 158, 11, 0.4);
       border-radius: 16px;
       padding: 24px;
-      box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(245, 158, 11, 0.15);
+      box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.8);
       animation: fadeIn 0.4s ease forwards;
     }
 
@@ -443,9 +666,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
       transition: all 0.2s;
     }
 
@@ -462,11 +682,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 0.9rem;
       line-height: 1.6;
       color: #38bdf8;
-      overflow-x: auto;
       white-space: pre-wrap;
     }
 
-    /* Video Showcase Gallery */
+    /* Gallery */
     .gallery-section {
       margin-top: 36px;
     }
@@ -476,16 +695,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-weight: 800;
       letter-spacing: -0.02em;
       margin-bottom: 16px;
-      color: var(--text);
       display: flex;
       align-items: center;
       gap: 10px;
-    }
-
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
     }
 
     .video-card {
@@ -493,35 +705,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border: 1px solid var(--card-border);
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      transition: border-color 0.2s;
-    }
-
-    .video-card:hover {
-      border-color: var(--card-hover);
-    }
-
-    .video-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .video-name {
-      font-weight: 700;
-      font-size: 1rem;
-      color: #ffffff;
-    }
-
-    .badge-pill {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      color: var(--cyan);
+      margin-bottom: 20px;
     }
 
     video {
@@ -529,31 +713,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border-radius: 12px;
       background: #000;
       aspect-ratio: 16 / 9;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
 
-    .video-footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 14px;
-    }
-
-    .download-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--accent-light);
-      text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 700;
-      transition: opacity 0.2s;
-    }
-
-    .download-link:hover {
-      opacity: 0.85;
-    }
-
-    /* Toast notification */
     #toast {
       position: fixed;
       bottom: 30px;
@@ -575,9 +736,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
 
     @media (max-width: 640px) {
-      .grid-2, .aspect-grid { grid-template-columns: 1fr; }
+      .grid-2, .aspect-grid, .caption-style-grid, .theme-grid { grid-template-columns: 1fr; }
       h1 { font-size: 2.1rem; }
-      .glass-card { padding: 22px; }
+      .glass-card { padding: 20px; }
     }
   </style>
 </head>
@@ -590,12 +751,44 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <span>STUDIO ENGINE READY • LOCAL HOST 5500</span>
       </div>
       <h1>Direct Videos with <span class="gradient">Your Coding Agent</span></h1>
-      <p class="subtitle">Set your visual rules, voice, and topic below. Copy the prompt to Cursor, Claude Code, or Antigravity to render.</p>
+      <p class="subtitle">Visually preview caption kinetic motion and color palettes in real-time below. Copy the generated spec to your agent to render.</p>
     </header>
 
+    <!-- =====================================================================
+         LIVE VISUAL SIMULATOR (WYSIWYG)
+         ===================================================================== -->
+    <div class="simulator-card">
+      <div class="simulator-header">
+        <div class="sim-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          <span>LIVE COMPOSITION SIMULATOR</span>
+        </div>
+        <span id="sim-theme-badge" style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#94a3b8;">☕ Coffee Warm Roast</span>
+      </div>
+
+      <div class="sim-screen" id="sim-screen">
+        <div class="sim-top-badge" id="sim-aspect-badge">16:9 • 1080P Widescreen</div>
+
+        <div class="sim-center-content">
+          <div class="sim-metric-val" id="sim-metric">0°C / 32°F</div>
+          <div class="sim-metric-sub" id="sim-metric-sub">Biological Kryptonite: Frost kills coffee trees in hours</div>
+        </div>
+
+        <div class="sim-caption-bar style-kinetic-gold" id="sim-caption-bar">
+          <span class="sim-word">Why</span>
+          <span class="sim-word">your</span>
+          <span class="sim-word">garden</span>
+          <span class="sim-word active-word" id="sim-active-word">CAN'T</span>
+          <span class="sim-word">grow</span>
+          <span class="sim-word">coffee</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTROL PANEL -->
     <div class="glass-card">
       <form id="studio-form">
-        <!-- Topic -->
+        <!-- 1. Topic -->
         <div class="field-group">
           <div class="label-row">
             <label>1. Narrative Topic & Hook</label>
@@ -611,41 +804,167 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
         </div>
 
-        <!-- Aspect Ratio Visual Cards -->
+        <!-- 2. Aspect Ratio -->
         <div class="field-group">
           <div class="label-row">
             <label>2. Format & Canvas Aspect Ratio</label>
-            <span class="label-hint">Target distribution platform</span>
           </div>
           <div class="aspect-grid">
             <div class="aspect-card active" id="card-16-9" onclick="setAspect('16:9')">
               <div class="aspect-icon-box">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M10 10l5 2-5 2v-4z"></path></svg>
               </div>
-              <div class="aspect-info">
-                <h4>16:9 Landscape</h4>
-                <p>YouTube, Desktop, Keynotes</p>
+              <div>
+                <h4 style="font-weight:700; margin-bottom:2px;">16:9 Landscape</h4>
+                <p style="font-size:0.78rem; color:var(--text-dim);">YouTube, Desktop, Keynotes</p>
               </div>
             </div>
             <div class="aspect-card" id="card-9-16" onclick="setAspect('9:16')">
               <div class="aspect-icon-box">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"></rect><circle cx="12" cy="18" r="1"></circle></svg>
               </div>
-              <div class="aspect-info">
-                <h4>9:16 Vertical</h4>
-                <p>TikTok, Reels, YouTube Shorts</p>
+              <div>
+                <h4 style="font-weight:700; margin-bottom:2px;">9:16 Vertical</h4>
+                <p style="font-size:0.78rem; color:var(--text-dim);">TikTok, Reels, YouTube Shorts</p>
               </div>
             </div>
           </div>
           <input type="hidden" id="format" value="16:9" />
         </div>
 
-        <!-- Duration & Voice -->
+        <!-- 3. VISUAL CAPTION STYLES (SEE HOW IT LOOKS) -->
+        <div class="field-group">
+          <div class="label-row">
+            <label>3. Kinetic Caption Style (Visual Preview)</label>
+            <span class="label-hint">Click to see live animation in simulator above</span>
+          </div>
+          <div class="caption-style-grid">
+            <!-- Style 1 -->
+            <div class="style-card active" id="style-gold" onclick="setCaptionStyle('kinetic-gold')">
+              <div class="style-preview-box">
+                <span style="color:#94a3b8;">WHY</span>
+                <span style="background:#fbbf24; color:#0b0f19; padding:2px 6px; border-radius:4px; box-shadow:0 0 8px rgba(251,191,36,0.5);">GARDEN</span>
+                <span style="color:#94a3b8;">CAN'T</span>
+              </div>
+              <div class="style-card-title">✨ TikTok Active Gold</div>
+              <div class="style-card-desc">High-energy viral TikTok/Reels font with spring bounce box.</div>
+            </div>
+
+            <!-- Style 2 -->
+            <div class="style-card" id="style-cyan" onclick="setCaptionStyle('cyber-cyan')">
+              <div class="style-preview-box">
+                <span style="color:#94a3b8;">WHY</span>
+                <span style="background:#22d3ee; color:#041824; padding:2px 6px; border-radius:4px; box-shadow:0 0 10px rgba(34,211,238,0.8);">GARDEN</span>
+                <span style="color:#94a3b8;">CAN'T</span>
+              </div>
+              <div class="style-card-title">💎 Cyber Neon Cyan</div>
+              <div class="style-card-desc">Luminous sci-fi neon glow for engineering, physics & tech.</div>
+            </div>
+
+            <!-- Style 3 -->
+            <div class="style-card" id="style-white" onclick="setCaptionStyle('clean-white')">
+              <div class="style-preview-box">
+                <span style="color:#94a3b8;">WHY</span>
+                <span style="background:#ffffff; color:#0b0f19; padding:2px 6px; border-radius:4px;">GARDEN</span>
+                <span style="color:#94a3b8;">CAN'T</span>
+              </div>
+              <div class="style-card-title">⚪ Minimalist Clean</div>
+              <div class="style-card-desc">Crisp monochrome contrast for classic documentaries.</div>
+            </div>
+          </div>
+          <input type="hidden" id="captionStyle" value="kinetic-gold" />
+        </div>
+
+        <!-- 4. VISUAL MOTION & COLOR PALETTES (SEE HOW IT LOOKS) -->
+        <div class="field-group">
+          <div class="label-row">
+            <label>4. Color & Motion Palette (Visual Preview)</label>
+            <span class="label-hint">Click to see canvas colors shift in real time</span>
+          </div>
+          <div class="theme-grid">
+            <!-- Theme 1 -->
+            <div class="theme-card active" id="theme-coffee" onclick="setTheme('flat-motion-graphics')">
+              <div class="theme-card-top">
+                <span class="theme-name">☕ Coffee Warm Roast</span>
+                <div class="swatches">
+                  <span class="swatch" style="background:#f59e0b;"></span>
+                  <span class="swatch" style="background:#d97706;"></span>
+                  <span class="swatch" style="background:#38bdf8;"></span>
+                  <span class="swatch" style="background:#120e0b;"></span>
+                </div>
+              </div>
+              <div class="theme-chart-preview">
+                <div class="theme-bar" style="background:#38bdf8; height:25%;"></div>
+                <div class="theme-bar" style="background:#34d399; height:65%;"></div>
+                <div class="theme-bar" style="background:#f87171; height:100%;"></div>
+              </div>
+              <div class="theme-desc">Amber gold accents, dark roast background & vivid temperature bars.</div>
+            </div>
+
+            <!-- Theme 2 -->
+            <div class="theme-card" id="theme-fintech" onclick="setTheme('clean-professional')">
+              <div class="theme-card-top">
+                <span class="theme-name">🌐 Modern Tech & SaaS</span>
+                <div class="swatches">
+                  <span class="swatch" style="background:#2563eb;"></span>
+                  <span class="swatch" style="background:#38bdf8;"></span>
+                  <span class="swatch" style="background:#10b981;"></span>
+                  <span class="swatch" style="background:#ffffff;"></span>
+                </div>
+              </div>
+              <div class="theme-chart-preview">
+                <div class="theme-bar" style="background:#2563eb; height:45%;"></div>
+                <div class="theme-bar" style="background:#38bdf8; height:80%;"></div>
+                <div class="theme-bar" style="background:#10b981; height:60%;"></div>
+              </div>
+              <div class="theme-desc">Electric blue, sky cyan & clean high-trust corporate metrics.</div>
+            </div>
+
+            <!-- Theme 3 -->
+            <div class="theme-card" id="theme-blueprint" onclick="setTheme('minimalist-diagram')">
+              <div class="theme-card-top">
+                <span class="theme-name">📐 Technical Blueprint</span>
+                <div class="swatches">
+                  <span class="swatch" style="background:#e94560;"></span>
+                  <span class="swatch" style="background:#0f3460;"></span>
+                  <span class="swatch" style="background:#1a1a2e;"></span>
+                  <span class="swatch" style="background:#9ca3af;"></span>
+                </div>
+              </div>
+              <div class="theme-chart-preview">
+                <div class="theme-bar" style="background:#e94560; height:70%;"></div>
+                <div class="theme-bar" style="background:#0f3460; height:40%;"></div>
+                <div class="theme-bar" style="background:#9ca3af; height:90%;"></div>
+              </div>
+              <div class="theme-desc">Deep space navy with high-contrast scientific coral accents.</div>
+            </div>
+
+            <!-- Theme 4 -->
+            <div class="theme-card" id="theme-nature" onclick="setTheme('anime-ghibli')">
+              <div class="theme-card-top">
+                <span class="theme-name">🍃 Nature & Biology</span>
+                <div class="swatches">
+                  <span class="swatch" style="background:#2d5016;"></span>
+                  <span class="swatch" style="background:#ffb347;"></span>
+                  <span class="swatch" style="background:#a8e6cf;"></span>
+                  <span class="swatch" style="background:#0a0a1a;"></span>
+                </div>
+              </div>
+              <div class="theme-chart-preview">
+                <div class="theme-bar" style="background:#ffb347; height:50%;"></div>
+                <div class="theme-bar" style="background:#2d5016; height:85%;"></div>
+                <div class="theme-bar" style="background:#a8e6cf; height:65%;"></div>
+              </div>
+              <div class="theme-desc">Forest greens, sunburst gold & organic natural science palettes.</div>
+            </div>
+          </div>
+          <input type="hidden" id="theme" value="flat-motion-graphics" />
+        </div>
+
+        <!-- 5. Duration & Voice -->
         <div class="field-group grid-2">
           <div>
-            <div class="label-row">
-              <label>3. Target Duration</label>
-            </div>
+            <div class="label-row"><label>5. Target Duration</label></div>
             <div class="segmented-control">
               <button type="button" class="segment-btn active" id="dur-60" onclick="setDuration(60)">60s Explainer</button>
               <button type="button" class="segment-btn" id="dur-30" onclick="setDuration(30)">30s Fast Hook</button>
@@ -654,9 +973,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
 
           <div>
-            <div class="label-row">
-              <label>4. Neural Narration Voice</label>
-            </div>
+            <div class="label-row"><label>6. Neural Voice</label></div>
             <div class="custom-select-wrapper">
               <select id="voice">
                 <option value="en-US-AndrewMultilingualNeural">Andrew (Warm & Expressive Male)</option>
@@ -664,42 +981,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <option value="en-US-BrianNeural">Brian (Authoritative Documentary)</option>
                 <option value="en-US-EmmaMultilingualNeural">Emma (Warm & Friendly Female)</option>
                 <option value="en-US-GuyNeural">Guy (Conversational Everyday Male)</option>
-              </select>
-              <div class="select-chevron">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Caption Style & Visual Theme -->
-        <div class="field-group grid-2">
-          <div>
-            <div class="label-row">
-              <label>5. Kinetic Caption Style</label>
-            </div>
-            <div class="custom-select-wrapper">
-              <select id="captionStyle">
-                <option value="kinetic-gold">✨ TikTok Active Gold Highlighter</option>
-                <option value="cyber-cyan">💎 Cyber Neon Cyan Highlight</option>
-                <option value="clean-white">⚪ Clean Minimalist Monochrome</option>
-              </select>
-              <div class="select-chevron">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div class="label-row">
-              <label>6. Color & Motion Palette</label>
-            </div>
-            <div class="custom-select-wrapper">
-              <select id="theme">
-                <option value="flat-motion-graphics">☕ Coffee Warm Roast (Amber #F59E0B / Dark Slate)</option>
-                <option value="clean-professional">🌐 Clean Modern Fintech (Royal Blue #2563EB / White)</option>
-                <option value="minimalist-diagram">📐 Technical Architecture (Navy #1A1A2E / Coral Accent)</option>
-                <option value="anime-ghibli">🍃 Nature & Organic (Forest Green / Warm Gold)</option>
               </select>
               <div class="select-chevron">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -722,7 +1003,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <span>TASK PREPARED IN projects/current_task.json</span>
           </div>
           <button type="button" class="copy-btn" onclick="copyPrompt()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span id="copy-btn-text">Copy Prompt</span>
           </button>
         </div>
@@ -753,12 +1033,73 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('format').value = ratio;
       document.getElementById('card-16-9').classList.toggle('active', ratio === '16:9');
       document.getElementById('card-9-16').classList.toggle('active', ratio === '9:16');
+      
+      const badge = document.getElementById('sim-aspect-badge');
+      badge.innerText = ratio === '16:9' ? '16:9 • 1080P Widescreen' : '9:16 • 1080P Vertical Reel';
     }
 
     function setDuration(dur) {
       document.getElementById('duration').value = dur;
       document.getElementById('dur-60').classList.toggle('active', dur === 60);
       document.getElementById('dur-30').classList.toggle('active', dur === 30);
+    }
+
+    // Interactive Caption Style Switcher
+    function setCaptionStyle(style) {
+      document.getElementById('captionStyle').value = style;
+      document.getElementById('style-gold').classList.toggle('active', style === 'kinetic-gold');
+      document.getElementById('style-cyan').classList.toggle('active', style === 'cyber-cyan');
+      document.getElementById('style-white').classList.toggle('active', style === 'clean-white');
+
+      const simBar = document.getElementById('sim-caption-bar');
+      simBar.className = 'sim-caption-bar style-' + style;
+    }
+
+    // Interactive Theme Switcher
+    const THEME_DATA = {
+      'flat-motion-graphics': {
+        name: '☕ Coffee Warm Roast',
+        bg: '#120e0b',
+        metricColor: '#f59e0b',
+        val: '0°C / 32°F',
+        sub: 'Biological Kryptonite: Frost kills coffee trees in hours'
+      },
+      'clean-professional': {
+        name: '🌐 Modern Tech & SaaS',
+        bg: '#0a101f',
+        metricColor: '#38bdf8',
+        val: '$4.2B ARR',
+        sub: 'Zero friction cloud distribution at scale'
+      },
+      'minimalist-diagram': {
+        name: '📐 Technical Blueprint',
+        bg: '#0c0f1a',
+        metricColor: '#e94560',
+        val: '2.4 × 10⁸ ops/s',
+        sub: 'Quantum coherence limit observed in nanoseconds'
+      },
+      'anime-ghibli': {
+        name: '🍃 Nature & Biology',
+        bg: '#08140c',
+        metricColor: '#ffb347',
+        val: '1,800 Meters',
+        sub: 'Highland mountain mist concentrates dense sugars'
+      }
+    };
+
+    function setTheme(theme) {
+      document.getElementById('theme').value = theme;
+      document.getElementById('theme-coffee').classList.toggle('active', theme === 'flat-motion-graphics');
+      document.getElementById('theme-fintech').classList.toggle('active', theme === 'clean-professional');
+      document.getElementById('theme-blueprint').classList.toggle('active', theme === 'minimalist-diagram');
+      document.getElementById('theme-nature').classList.toggle('active', theme === 'anime-ghibli');
+
+      const t = THEME_DATA[theme] || THEME_DATA['flat-motion-graphics'];
+      document.getElementById('sim-theme-badge').innerText = t.name;
+      document.getElementById('sim-screen').style.background = t.bg;
+      document.getElementById('sim-metric').style.color = t.metricColor;
+      document.getElementById('sim-metric').innerText = t.val;
+      document.getElementById('sim-metric-sub').innerText = t.sub;
     }
 
     document.getElementById('studio-form').addEventListener('submit', async (e) => {
@@ -816,16 +1157,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
         container.innerHTML = videos.map(v => `
           <div class="video-card">
-            <div class="video-header">
-              <span class="video-name">${v.name}</span>
-              <span class="badge-pill">1080P FULL HD • 30 FPS</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span style="font-weight:700; color:#ffffff;">${v.name}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; padding:4px 10px; border-radius:999px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.2); color:#38bdf8;">1080P FULL HD • 30 FPS</span>
             </div>
             <video controls src="${v.url}"></video>
-            <div class="video-footer">
-              <a href="${v.url}" download class="download-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span>Download Master MP4</span>
-              </a>
+            <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+              <a href="${v.url}" download style="color:#fbbf24; text-decoration:none; font-size:0.85rem; font-weight:700;">⬇️ Download Master MP4</a>
             </div>
           </div>
         `).join('');
@@ -904,7 +1242,6 @@ def run_server():
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     os.makedirs(RENDERS_DIR, exist_ok=True)
     
-    # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
     server_address = ("", PORT)
     with socketserver.TCPServer(server_address, StudioHandler) as httpd:
