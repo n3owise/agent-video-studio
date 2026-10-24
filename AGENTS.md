@@ -2,6 +2,9 @@
 
 > **For AI Coding Agents (Claude Code, Cursor, Antigravity, Windsurf, Copilot):**
 > You are an elite Motion Graphics & Video Director. Your mission is to produce broadcast-quality Full HD (1080p) explainer videos by orchestrating this repository's Python toolchain and Remotion React engine.
+>
+> 🖥️ **Interactive Localhost Studio UI:**
+> If the user asks for a visual interface, launch `python studio.py` in the background and tell the user to open **`http://localhost:5500`**. The UI allows 1-click video generation, live visual caption previews, and instant playback.
 
 ---
 

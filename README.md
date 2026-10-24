@@ -35,9 +35,42 @@ Instead of paying \$50–\$200/month for ElevenLabs, stock footage subscriptions
 
 ---
 
-## 📋 The Copy-Pastable Agent Prompt
+## 🚀 Quick Start in 2 Minutes
 
-Open this repo in your favorite AI coding agent (**Cursor, Claude Code, Antigravity, or Windsurf**) and paste this prompt:
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/n3owise/agent-video-studio.git
+cd agent-video-studio
+
+# Install Python audio & video tools
+pip install -r requirements.txt
+
+# Install Remotion motion graphics engine
+cd remotion-composer && npm install && cd ..
+```
+
+### 2. Launch the Localhost Studio UI (Recommended)
+Launch the interactive web control center:
+```bash
+python studio.py
+```
+Open **`http://localhost:5500`** in your browser!
+
+<p align="center">
+  <img src="examples/studio_ui.png" alt="Agent Video Studio Localhost UI" width="760" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);" />
+</p>
+
+#### In the Localhost UI:
+- **Live Visual Simulator:** See live caption animations and theme color palettes change in real-time as you click.
+- **Aspect Ratio:** Toggle between **16:9 Landscape** (YouTube) and **9:16 Vertical** (TikTok / Reels / Shorts).
+- **Neural Voice & Style:** Pick expressive neural voices (Andrew, Aria, Brian, Emma) and kinetic caption highlight styles.
+- **1-Click Generation:** Click **`[ 🚀 Generate & Render Full HD Video Now ]`**. The backend will automatically write the script, synthesize audio, align captions, fetch B-roll, and render your Full HD MP4 with a live progress bar!
+- **Instant Playback & Download:** Once finished, the video automatically loads in the browser player ready to watch and download.
+
+---
+
+### 3. Or Direct with Your AI Agent (Cursor / Claude Code / Antigravity)
+If you prefer directing through chat with your AI agent, open the repo in Cursor, Claude Code, or Antigravity and paste:
 
 ```text
 Please read AGENTS.md. I want to create a 60-second broadcast-quality explainer video on:
@@ -51,47 +84,7 @@ Please:
 5. Assemble remotion_props.json with data charts, stat cards, and video layers.
 6. Render the final Full HD MP4 video with tools/render.py.
 ```
-
-*That's it. Your agent will write the code, fetch the assets, align the speech, and deliver your MP4.*
-
----
-
-## 🚀 Quick Start in 3 Steps
-
-### 1. Clone & Install Dependencies (2 minutes)
-```bash
-git clone https://github.com/n3owise/agent-video-studio.git
-cd agent-video-studio
-
-# Install Python audio & video tools
-pip install -r requirements.txt
-
-# Install Remotion motion graphics engine
-cd remotion-composer && npm install && cd ..
-```
-
-### 2. Launch the Localhost Studio UI (Optional)
-Prefer clicking options instead of typing prompts? Launch the web dashboard:
-```bash
-python studio.py
-```
-Open **`http://localhost:5500`** in your browser:
-
-<p align="center">
-  <img src="examples/studio_ui.png" alt="Agent Video Studio Localhost UI" width="760" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);" />
-</p>
-
-- Pick your **Topic** (or click a quick suggestion pill).
-- Choose **Aspect Ratio** (`16:9` YouTube Widescreen or `9:16` TikTok / Reels).
-- Select **Neural Voice** (Andrew, Aria, Brian, Emma).
-- Choose **Caption Style** (✨ TikTok Active Gold, 💎 Cyber Cyan, ⚪ Clean Minimal).
-- Click **"🚀 Prepare Production Task"**.
-
-### 3. Let Your Agent Render
-Tell your AI agent:
-> *"Produce the video configured in projects/current_task.json following AGENTS.md"*
-
-Your agent executes the tools and saves your video to `renders/`.
+*(Or simply tell your agent: **"Launch studio.py on localhost"** to open the visual UI!)*
 
 ---
 
